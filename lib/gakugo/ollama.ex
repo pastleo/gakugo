@@ -37,10 +37,11 @@ defmodule Gakugo.Ollama do
       }
       |> maybe_put(:format, format)
 
-    base_url = Application.fetch_env!(:gakugo, :ollama)[:base_url]
-    url = "#{base_url}/api/chat"
+    config = Application.fetch_env!(:gakugo, :ollama)
+    url = "#{config[:base_url]}/api/chat"
+    headers = [{"host", config[:host_header]}]
 
-    case Req.post(url, json: body, receive_timeout: 120_000) do
+    case Req.post(url, json: body, receive_timeout: 120_000, headers: headers) do
       {:ok, %Req.Response{status: 200, body: body}} ->
         {:ok, body}
 

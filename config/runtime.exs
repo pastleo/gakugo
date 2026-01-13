@@ -26,7 +26,8 @@ config :gakugo, GakugoWeb.Endpoint,
 # Ollama configuration
 config :gakugo, :ollama,
   base_url: System.get_env("OLLAMA_BASE_URL", "http://localhost:11434"),
-  model: System.get_env("OLLAMA_MODEL", "gpt-oss:20b")
+  model: System.get_env("OLLAMA_MODEL", "gpt-oss:20b"),
+  host_header: System.get_env("OLLAMA_HOST_HEADER", "localhost")
 
 if config_env() == :prod do
   database_path =
