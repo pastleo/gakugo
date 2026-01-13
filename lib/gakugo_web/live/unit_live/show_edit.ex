@@ -799,24 +799,16 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
     unit_id = socket.assigns.unit.id
 
     socket =
-      case SyncService.sync_unit_to_anki(unit_id) do
-        {:ok, %{synced_count: count, deck_name: deck_name}} ->
-          case SyncService.sync_to_server() do
-            {:ok, %{"status" => status}} ->
-              put_flash(
-                socket,
-                :info,
-                "Synced #{count} flashcard(s) to deck '#{deck_name}', server sync: #{status}"
-              )
-
-            {:error, reason} ->
-              put_flash(
-                socket,
-                :error,
-                "Added #{count} flashcard(s) to local Anki, but server sync failed: #{inspect(reason)}"
-              )
-          end
-
+      with {:ok, _} <- SyncService.full_download_from_server(),
+           {:ok, %{synced_count: count, deck_name: deck_name}} <-
+             SyncService.sync_unit_to_anki(unit_id),
+           {:ok, %{"status" => status}} <- SyncService.sync_to_server() do
+        put_flash(
+          socket,
+          :info,
+          "Synced #{count} flashcard(s) to deck '#{deck_name}', server sync: #{status}"
+        )
+      else
         {:error, reason} ->
           put_flash(socket, :error, "Failed to sync to Anki: #{inspect(reason)}")
       end
