@@ -1,5 +1,9 @@
 # Gakugo
 
+```bash
+git clone --recursive https://github.com/pastleo/gakugo.git
+```
+
 To start your Phoenix server:
 
 * Run `mix setup` to install and setup dependencies

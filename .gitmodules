@@ -1,3 +1,3 @@
-[submodule "gakugo-compose"]
-	path = gakugo-compose
-	url = https://github.com/pastleo/gakugo-compose.git
+[submodule "gakugo-anki-compose"]
+	path = gakugo-anki-compose
+	url = https://github.com/pastleo/gakugo-anki-compose.git
