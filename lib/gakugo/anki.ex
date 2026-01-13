@@ -160,8 +160,7 @@ defmodule Gakugo.Anki do
   defp ensure_python_initialized(%{python_globals: nil} = state) do
     Logger.debug("Gakugo.Anki: initializing python_globals...")
 
-    Path.dirname(__ENV__.file)
-    |> Path.join("anki/anki.py")
+    Application.app_dir(:gakugo, "priv/anki/anki.py")
     |> File.read!()
     |> Pythonx.eval(%{})
     |> then(fn {_, python_globals} ->
