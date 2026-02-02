@@ -516,3 +516,11 @@ And **never** do this:
 <!-- phoenix:liveview-end -->
 
 <!-- usage-rules-end -->
+
+<!-- AGENTS.local.md start -->
+
+@AGENTS.local.md
+
+<!-- AGENTS.local.md end -->
+
+> AGENTS.local.md imported by AGENTS.md is git-ignored, this can be used to track current work progress and personal docs across coding agent sessions
