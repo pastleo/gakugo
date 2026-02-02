@@ -71,6 +71,23 @@ config :pythonx, :uv_init,
   ]
   """
 
+config :gakugo, :ollama,
+  base_url: "http://localhost:11434",
+  model: "gpt-oss:20b",
+  host_header: "localhost"
+
+config :gakugo, Gakugo.Anki,
+  collection_path: Path.expand("../priv/anki/collection.anki2", __DIR__),
+  sync_endpoint: "http://localhost:8080/",
+  sync_username: "dev",
+  sync_password: "asdfasdf"
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"
+
+local_config = "#{config_env()}.local.exs"
+
+if File.exists?(Path.expand(local_config, __DIR__)) do
+  import_config local_config
+end

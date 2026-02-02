@@ -87,13 +87,3 @@ config :phoenix_live_view,
 
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
-
-config :gakugo, Gakugo.Anki,
-  collection_path:
-    System.get_env(
-      "ANKI_COLLECTION_PATH",
-      Path.expand("../priv/anki/collection.anki2", __DIR__)
-    ),
-  sync_endpoint: System.get_env("ANKI_SYNC_ENDPOINT", "http://localhost:8080/"),
-  sync_username: System.get_env("ANKI_SYNC_USERNAME", "dev"),
-  sync_password: System.get_env("ANKI_SYNC_PASSWORD", "asdfasdf")

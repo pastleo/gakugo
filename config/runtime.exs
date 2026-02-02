@@ -23,11 +23,51 @@ end
 config :gakugo, GakugoWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
-# Ollama configuration
-config :gakugo, :ollama,
-  base_url: System.get_env("OLLAMA_BASE_URL", "http://localhost:11434"),
-  model: System.get_env("OLLAMA_MODEL", "gpt-oss:20b"),
-  host_header: System.get_env("OLLAMA_HOST_HEADER", "localhost")
+ollama_config =
+  [
+    {:base_url, System.get_env("OLLAMA_BASE_URL")},
+    {:model, System.get_env("OLLAMA_MODEL")},
+    {:host_header, System.get_env("OLLAMA_HOST_HEADER")}
+  ]
+  |> Enum.filter(fn {_k, v} -> v != nil end)
+
+if ollama_config != [] do
+  config :gakugo, :ollama, ollama_config
+end
+
+anki_config =
+  if config_env() == :prod do
+    [
+      collection_path:
+        System.get_env("ANKI_COLLECTION_PATH") ||
+          raise("environment variable ANKI_COLLECTION_PATH is missing")
+    ]
+  else
+    case System.get_env("ANKI_COLLECTION_PATH") do
+      nil -> []
+      path -> [collection_path: path]
+    end
+  end
+
+anki_config =
+  case {System.get_env("ANKI_SYNC_ENDPOINT"), System.get_env("ANKI_SYNC_USERNAME"),
+        System.get_env("ANKI_SYNC_PASSWORD")} do
+    {endpoint, username, password}
+    when is_binary(endpoint) and is_binary(username) and is_binary(password) ->
+      anki_config ++
+        [
+          sync_endpoint: endpoint,
+          sync_username: username,
+          sync_password: password
+        ]
+
+    _ ->
+      anki_config
+  end
+
+if anki_config != [] do
+  config :gakugo, Gakugo.Anki, anki_config
+end
 
 if config_env() == :prod do
   database_path =
@@ -40,37 +80,6 @@ if config_env() == :prod do
   config :gakugo, Gakugo.Repo,
     database: database_path,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5")
-
-  # Anki sync configuration
-  # ANKI_COLLECTION_PATH is required in production
-  # ANKI_SYNC_* are optional - sync features disabled if not set
-  anki_collection_path =
-    System.get_env("ANKI_COLLECTION_PATH") ||
-      raise """
-      environment variable ANKI_COLLECTION_PATH is missing.
-      For example: /var/lib/gakugo/anki/collection.anki2
-      """
-
-  anki_config = [collection_path: anki_collection_path]
-
-  # Only add sync config if all sync env vars are present
-  anki_config =
-    case {System.get_env("ANKI_SYNC_ENDPOINT"), System.get_env("ANKI_SYNC_USERNAME"),
-          System.get_env("ANKI_SYNC_PASSWORD")} do
-      {endpoint, username, password}
-      when is_binary(endpoint) and is_binary(username) and is_binary(password) ->
-        anki_config ++
-          [
-            sync_endpoint: endpoint,
-            sync_username: username,
-            sync_password: password
-          ]
-
-      _ ->
-        anki_config
-    end
-
-  config :gakugo, Gakugo.Anki, anki_config
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you

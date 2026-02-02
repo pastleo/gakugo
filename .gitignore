@@ -39,3 +39,6 @@ npm-debug.log
 *.db
 *.db-*
 
+# Local dev config
+/config/*.local.exs
+
