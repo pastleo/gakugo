@@ -73,7 +73,7 @@ config :pythonx, :uv_init,
 
 config :gakugo, :ollama,
   base_url: "http://localhost:11434",
-  model: "gpt-oss:20b",
+  model: "gemma3:12b",
   host_header: "localhost"
 
 config :gakugo, Gakugo.Anki,

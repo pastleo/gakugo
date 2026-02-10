@@ -2,6 +2,7 @@ defmodule GakugoWeb.UnitLive.Index do
   use GakugoWeb, :live_view
 
   alias Gakugo.Learning
+  alias Gakugo.Learning.FromTargetLang
 
   @impl true
   def render(assigns) do
@@ -22,8 +23,9 @@ defmodule GakugoWeb.UnitLive.Index do
         row_click={fn {_id, unit} -> JS.navigate(~p"/units/#{unit}") end}
       >
         <:col :let={{_id, unit}} label="Title">{unit.title}</:col>
-        <:col :let={{_id, unit}} label="Target lang">{unit.target_lang}</:col>
-        <:col :let={{_id, unit}} label="From lang">{unit.from_lang}</:col>
+        <:col :let={{_id, unit}} label="Language Pair">
+          {FromTargetLang.label(unit.from_target_lang)}
+        </:col>
         <:action :let={{id, unit}}>
           <.link
             phx-click={JS.push("delete", value: %{id: unit.id}) |> hide("##{id}")}

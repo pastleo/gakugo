@@ -11,8 +11,7 @@ defmodule Gakugo.LearningFixtures do
     {:ok, unit} =
       attrs
       |> Enum.into(%{
-        from_lang: "some from_lang",
-        target_lang: "some target_lang",
+        from_target_lang: "JA-from-zh-TW",
         title: "some title"
       })
       |> Gakugo.Learning.create_unit()

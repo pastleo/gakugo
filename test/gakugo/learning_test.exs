@@ -8,7 +8,7 @@ defmodule Gakugo.LearningTest do
 
     import Gakugo.LearningFixtures
 
-    @invalid_attrs %{title: nil, target_lang: nil, from_lang: nil}
+    @invalid_attrs %{title: nil, from_target_lang: nil}
 
     test "list_units/0 returns all units" do
       unit = unit_fixture()
@@ -25,18 +25,21 @@ defmodule Gakugo.LearningTest do
     test "create_unit/1 with valid data creates a unit" do
       valid_attrs = %{
         title: "some title",
-        target_lang: "some target_lang",
-        from_lang: "some from_lang"
+        from_target_lang: "JA-from-zh-TW"
       }
 
       assert {:ok, %Unit{} = unit} = Learning.create_unit(valid_attrs)
       assert unit.title == "some title"
-      assert unit.target_lang == "some target_lang"
-      assert unit.from_lang == "some from_lang"
+      assert unit.from_target_lang == "JA-from-zh-TW"
     end
 
     test "create_unit/1 with invalid data returns error changeset" do
       assert {:error, %Ecto.Changeset{}} = Learning.create_unit(@invalid_attrs)
+    end
+
+    test "create_unit/1 with invalid from_target_lang returns error changeset" do
+      invalid_attrs = %{title: "some title", from_target_lang: "invalid-lang"}
+      assert {:error, %Ecto.Changeset{}} = Learning.create_unit(invalid_attrs)
     end
 
     test "update_unit/2 with valid data updates the unit" do
@@ -44,14 +47,12 @@ defmodule Gakugo.LearningTest do
 
       update_attrs = %{
         title: "some updated title",
-        target_lang: "some updated target_lang",
-        from_lang: "some updated from_lang"
+        from_target_lang: "JA-from-zh-TW"
       }
 
       assert {:ok, %Unit{} = unit} = Learning.update_unit(unit, update_attrs)
       assert unit.title == "some updated title"
-      assert unit.target_lang == "some updated target_lang"
-      assert unit.from_lang == "some updated from_lang"
+      assert unit.from_target_lang == "JA-from-zh-TW"
     end
 
     test "update_unit/2 with invalid data returns error changeset" do

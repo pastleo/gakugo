@@ -3,6 +3,7 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
 
   alias Gakugo.Learning
   alias Gakugo.Learning.FlashcardGenerator
+  alias Gakugo.Learning.FromTargetLang
   alias Gakugo.Anki.SyncService
 
   @impl true
@@ -44,26 +45,14 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
                 </dd>
               </div>
               <div class="items-center sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                <dt class="text-sm font-medium leading-6">Target lang</dt>
+                <dt class="text-sm font-medium leading-6">Language Pair</dt>
                 <dd class="mt-1 text-sm leading-6 sm:col-span-2 sm:mt-0">
                   <div class="inline-edit-field">
                     <.input
-                      field={@form[:target_lang]}
-                      type="text"
-                      class="w-full input input-ghost"
-                      phx-debounce="300"
-                    />
-                  </div>
-                </dd>
-              </div>
-              <div class="items-center sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                <dt class="text-sm font-medium leading-6">From lang</dt>
-                <dd class="mt-1 text-sm leading-6 sm:col-span-2 sm:mt-0">
-                  <div class="inline-edit-field">
-                    <.input
-                      field={@form[:from_lang]}
-                      type="text"
-                      class="w-full input input-ghost"
+                      field={@form[:from_target_lang]}
+                      type="select"
+                      options={@from_target_lang_options}
+                      class="w-full select select-ghost"
                       phx-debounce="300"
                     />
                   </div>
@@ -298,6 +287,7 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
      |> assign(:page_title, "Show Unit")
      |> assign(:unit, unit)
      |> assign(:form, to_form(Learning.change_unit(unit)))
+     |> assign(:from_target_lang_options, FromTargetLang.options())
      |> assign(:has_unsaved_changes, false)
      |> assign(:auto_save_timer, nil)
      |> assign(:vocabulary_forms, %{})

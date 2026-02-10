@@ -44,4 +44,29 @@ defmodule Gakugo.Learning.Grammar do
   end
 
   defp valid_detail_item?(_), do: false
+
+  @doc """
+  Formats a grammar as a markdown nested list.
+
+  ## Examples
+
+      iex> grammar = %Grammar{title: "～のに", details: [%{"detail" => "說明", "children" => []}]}
+      iex> Grammar.format(grammar)
+      "* ～のに\\n  * 說明"
+
+  """
+  def format(%__MODULE__{} = grammar) do
+    title_line = "* #{grammar.title}"
+    details_lines = format_details(grammar.details || [], 1)
+    [title_line | details_lines] |> Enum.join("\n")
+  end
+
+  defp format_details(details, depth) when is_list(details) do
+    Enum.flat_map(details, fn item ->
+      indent = String.duplicate("  ", depth)
+      detail_line = "#{indent}* #{item["detail"]}"
+      children_lines = format_details(item["children"] || [], depth + 1)
+      [detail_line | children_lines]
+    end)
+  end
 end

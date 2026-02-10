@@ -3,6 +3,7 @@ defmodule GakugoWeb.UnitLive.Form do
 
   alias Gakugo.Learning
   alias Gakugo.Learning.Unit
+  alias Gakugo.Learning.FromTargetLang
 
   @impl true
   def render(assigns) do
@@ -15,8 +16,12 @@ defmodule GakugoWeb.UnitLive.Form do
 
       <.form for={@form} id="unit-form" phx-change="validate" phx-submit="save">
         <.input field={@form[:title]} type="text" label="Title" />
-        <.input field={@form[:target_lang]} type="text" label="Target lang" />
-        <.input field={@form[:from_lang]} type="text" label="From lang" />
+        <.input
+          field={@form[:from_target_lang]}
+          type="select"
+          label="Language Pair"
+          options={@from_target_lang_options}
+        />
         <footer>
           <.button phx-disable-with="Saving..." variant="primary">Save Unit</.button>
           <.button navigate={return_path(@return_to, @unit)}>Cancel</.button>
@@ -31,6 +36,7 @@ defmodule GakugoWeb.UnitLive.Form do
     {:ok,
      socket
      |> assign(:return_to, return_to(params["return_to"]))
+     |> assign(:from_target_lang_options, FromTargetLang.options())
      |> apply_action(socket.assigns.live_action, params)}
   end
 

@@ -2,10 +2,11 @@ defmodule Gakugo.Learning.Unit do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Gakugo.Learning.FromTargetLang
+
   schema "units" do
     field :title, :string
-    field :target_lang, :string
-    field :from_lang, :string
+    field :from_target_lang, :string
 
     has_many :grammars, Gakugo.Learning.Grammar
     has_many :vocabularies, Gakugo.Learning.Vocabulary
@@ -17,7 +18,8 @@ defmodule Gakugo.Learning.Unit do
   @doc false
   def changeset(unit, attrs) do
     unit
-    |> cast(attrs, [:title, :target_lang, :from_lang])
-    |> validate_required([:title, :target_lang, :from_lang])
+    |> cast(attrs, [:title, :from_target_lang])
+    |> validate_required([:title, :from_target_lang])
+    |> validate_inclusion(:from_target_lang, FromTargetLang.all())
   end
 end

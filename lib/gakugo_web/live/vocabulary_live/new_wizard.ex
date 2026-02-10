@@ -2,7 +2,7 @@ defmodule GakugoWeb.VocabularyLive.NewWizard do
   use GakugoWeb, :live_view
 
   alias Gakugo.Learning
-  alias Gakugo.Ollama
+  alias Gakugo.Learning.VocabularyParser
 
   @impl true
   def render(assigns) do
@@ -128,9 +128,12 @@ defmodule GakugoWeb.VocabularyLive.NewWizard do
 
   @impl true
   def mount(%{"unit_id" => unit_id}, _session, socket) do
+    unit = Learning.get_unit!(unit_id)
+
     {:ok,
      socket
      |> assign(:unit_id, unit_id)
+     |> assign(:from_target_lang, unit.from_target_lang)
      |> assign(:source, "")
      |> assign(:vocabularies, [])
      |> assign(:parsing, false)
@@ -185,42 +188,8 @@ defmodule GakugoWeb.VocabularyLive.NewWizard do
   def handle_event("parse", _params, socket) do
     socket = assign(socket, :parsing, true)
 
-    format = %{
-      type: "object",
-      properties: %{
-        vocabularies: %{
-          type: "array",
-          items: %{
-            type: "object",
-            properties: %{
-              target: %{type: "string"},
-              from: %{type: "string"},
-              note: %{type: "string"}
-            },
-            required: ["target", "from", "note"]
-          }
-        }
-      },
-      required: ["vocabularies"]
-    }
-
-    system = """
-    你好，請幫忙從使用者輸入的文字截取出日文單字清單，使用者輸入的文字中每個項目應有 日文原文 以及 中文翻譯，target 爲日文原文，from 爲中文翻譯，每個項目剩餘的資料放在 note 中，不要額外補充東西
-    """
-
-    # system = """
-    # You are a language learning assistant that extracts vocabulary from text.
-    # Analyze the provided text and extract vocabulary words with their translations and usage notes.
-    # For each vocabulary item:
-    # - target: the word/phrase in the target language being learned
-    # - from: the translation or meaning in the learner's native language
-    # - note: context, example usage, or additional information
-
-    # Extract all relevant vocabulary items from the text.
-    # """
-
-    case Ollama.format(socket.assigns.source, system, format) do
-      {:ok, %{"vocabularies" => parsed_vocabs}} ->
+    case VocabularyParser.parse(socket.assigns.source, socket.assigns.from_target_lang) do
+      {:ok, parsed_vocabs} ->
         existing = socket.assigns.vocabularies
         new_vocabularies = existing ++ parsed_vocabs
 
