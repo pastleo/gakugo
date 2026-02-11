@@ -26,12 +26,11 @@ defmodule Gakugo.Learning.FlashcardGenerator do
     format_schema = %{
       type: "object",
       properties: %{
-        translation_from: %{ type: "string" },
+        translation_from: %{type: "string"},
         translation_target: %{type: "string"}
       },
       required: ["translation_from", "translation_target"]
     }
-
 
     case Ollama.format(user_prompt, system_prompt, format_schema) do
       {:ok, result} ->
