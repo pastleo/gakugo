@@ -5,12 +5,11 @@ defmodule Gakugo.Learning.Unit do
   alias Gakugo.Learning.FromTargetLang
 
   schema "units" do
-    field :title, :string
-    field :from_target_lang, :string
+    field(:title, :string)
+    field(:from_target_lang, :string)
+    field(:deleted_at, :utc_datetime)
 
-    has_many :grammars, Gakugo.Learning.Grammar
-    has_many :vocabularies, Gakugo.Learning.Vocabulary
-    has_many :flashcards, Gakugo.Learning.Flashcard
+    has_many(:pages, Gakugo.Learning.Page)
 
     timestamps(type: :utc_datetime)
   end

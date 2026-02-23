@@ -14,6 +14,10 @@ defmodule Gakugo.Application do
        repos: Application.fetch_env!(:gakugo, :ecto_repos), skip: skip_migrations?()},
       {DNSCluster, query: Application.get_env(:gakugo, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Gakugo.PubSub},
+      {Registry, keys: :unique, name: Gakugo.Learning.Notebook.UnitSession.Registry},
+      {DynamicSupervisor,
+       strategy: :one_for_one, name: Gakugo.Learning.Notebook.UnitSession.Supervisor},
+      Gakugo.AI.Config,
       Gakugo.Anki,
       GakugoWeb.Endpoint
     ]

@@ -20,41 +20,20 @@ defmodule Gakugo.LearningFixtures do
   end
 
   @doc """
-  Generate a grammar.
+  Generate a page.
   """
-  def grammar_fixture(attrs \\ %{}) do
+  def page_fixture(attrs \\ %{}) do
     unit = if Map.has_key?(attrs, :unit_id), do: nil, else: unit_fixture()
 
-    {:ok, grammar} =
+    {:ok, page} =
       attrs
       |> Enum.into(%{
-        details: [
-          %{"detail" => "some detail"}
-        ],
-        title: "some title",
+        items: [%{"text" => "", "front" => false, "children" => []}],
+        title: "some page",
         unit_id: unit && unit.id
       })
-      |> Gakugo.Learning.create_grammar()
+      |> Gakugo.Learning.create_page()
 
-    grammar
-  end
-
-  @doc """
-  Generate a vocabulary.
-  """
-  def vocabulary_fixture(attrs \\ %{}) do
-    unit = if Map.has_key?(attrs, :unit_id), do: nil, else: unit_fixture()
-
-    {:ok, vocabulary} =
-      attrs
-      |> Enum.into(%{
-        from: "some from",
-        note: "some note",
-        target: "some target",
-        unit_id: unit && unit.id
-      })
-      |> Gakugo.Learning.create_vocabulary()
-
-    vocabulary
+    page
   end
 end

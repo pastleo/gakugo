@@ -24,14 +24,17 @@ Mobile Anki App
 - `lib/gakugo/anki.ex` - GenServer wrapping Python calls via Pythonx
 - `lib/gakugo/anki/sync_service.ex` - High-level sync logic:
   - Custom "Gakugo" note type with fields: `["Front", "Back", "GakugoId"]`
-  - Uses tags (`gakugo-fc-{flashcard_id}`) to track identity and prevent duplicates
-  - Handles deletions by removing orphaned notes (flashcards deleted from DB)
+  - Builds cards from unit pages `items` (each `front: true` node becomes one card)
+  - Uses the front node's descendants as card back content (occlusion-style)
+  - Uses tags (`gakugo-id-unit-{unit_id}-path-{path}`) to track identity and prevent duplicates
+  - Handles deletions by removing orphaned notes when notebook fronts are removed
 
 ### Sync Flow
 
-1. `SyncService.sync_unit_to_anki/1` - Syncs a unit's flashcards to local Anki collection
-   - Creates/updates notes based on `gakugo-fc-{id}` tags
-   - Deletes orphaned notes (DB flashcard was deleted)
+1. `SyncService.sync_unit_to_anki/1` - Syncs a unit's notebook-derived flashcards to local Anki collection
+   - Creates/updates notes based on stable notebook-path tags (`gakugo-id-unit-...-path-...`)
+   - Front is rendered as nested HTML list with descendant back lines occluded and front highlighted
+   - Back is generated from the front node's descendant text
 2. `SyncService.sync_to_server/0` - Pushes local collection to anki-sync-server
 3. Mobile Anki app syncs from the server
 
@@ -53,6 +56,87 @@ config :gakugo, Gakugo.Anki,
 - `ANKI_SYNC_PASSWORD` (optional): Sync server password
 
 Sync features are disabled if sync env vars are not set.
+
+## Real-Time Collaboration (Notebook)
+
+- Collaboration is unit-scoped via PubSub topic `unit:notebook:{unit_id}`.
+- `Gakugo.Learning.Notebook.UnitSession` is the per-unit runtime process (started on demand via `DynamicSupervisor` + `Registry`) and now centralizes lock state, version state, autosave debounce state, and local intent application.
+- `Gakugo.Learning.Notebook.Editor.apply/2` remains a pure reducer for page-items mutation logic; both local and remote flows still use it for deterministic behavior.
+- Operation envelopes include `op_id`, `actor_id`, `page_id`, `base_version`, `version`, `command`, and `nodes` snapshot fallback; sessions ignore own echoes and dedupe by `op_id`.
+- Item/title locks are keyed by `page_id + lock_path` and managed with lease + heartbeat (`item_lock_acquire`, `item_lock_heartbeat`, `item_lock_release`), with lock updates broadcast as `{:item_locks_changed, %{unit_id: ...}}`.
+- Unit and page metadata (unit title, language pair, page title) synchronize by broadcasting `{:unit_meta_changed, %{...}}` after save; remote sessions reload from DB.
+- Page structure changes (add/delete) broadcast `{:unit_pages_changed, %{...}}`; remote sessions reload page/unit state.
+
+### Core components
+
+- `GakugoWeb.UnitLive.ShowEdit`
+  - subscribes to `unit:notebook:{unit_id}`
+  - handles view rendering, client hooks, op dedupe/echo guards, and remote reconcile
+  - delegates local mutation intents and autosave orchestration to `UnitSession`
+- `Gakugo.Learning.Notebook.UnitSession`
+  - per-unit GenServer runtime started on first access
+  - owns lock leases, version allocation/observe, autosave debounce queues, and local intent apply (`apply_intent/7`)
+  - monitors actor pids and releases their locks on disconnect/timeout
+- `Gakugo.Learning.Notebook.PageVersionRegistry`
+  - compatibility wrapper that delegates version APIs to `UnitSession`
+- `Gakugo.Learning.Notebook.ItemLockRegistry`
+  - compatibility wrapper that delegates lock APIs to `UnitSession`
+
+### Event flow
+
+- Local mutation:
+  - UI event -> `UnitSession.apply_intent/7` (lock guard + reducer + version) -> queue autosave in `UnitSession` -> broadcast op.
+- Remote mutation:
+  - receive PubSub op -> dedupe/echo guard -> observe remote version -> version gate -> reducer apply (or snapshot fallback) -> queue autosave.
+- Item lock flow:
+  - client focus/options-open -> `item_lock_acquire`
+  - heartbeat every 4s -> `item_lock_heartbeat`
+  - blur/options-close/unmount -> `item_lock_release`
+  - lock changes broadcast as `{:item_locks_changed, %{unit_id: ...}}`
+- Item drag-and-drop flow:
+  - drag starts from item options badge (`data-dnd-drag-handle`) in `UnitLive.ShowEdit`
+  - client emits `move_item` with source/target page + node identity
+  - same-page moves use reducer command `{:move_node, ...}`; cross-page moves are remove + insert operations
+  - all moves still pass through `UnitSession.apply_intent/7` so versioning, autosave, and PubSub sync remain consistent
+- Unit/page metadata sync flow:
+  - local autosave success (performed by `UnitSession`) -> broadcast `{:unit_meta_changed, %{...}}`
+  - remote receive -> reload unit/page metadata from DB and refresh local forms/state
+- Presence/runtime lifecycle:
+  - LiveView heartbeats actor presence to `UnitSession`
+  - `UnitSession` monitors actor pids and prunes inactive actors/locks
+  - unit process self-terminates after idle timeout when no active actors/locks/pending saves
+
+### Flashcard/Answer rules
+
+- `front: true` marks a notebook item as a flashcard source.
+- Never allow nested flashcards: an item under a flashcard branch cannot be marked `front: true`.
+- `answer: true` is allowed for descendants inside a flashcard branch.
+- `answer: true` is also allowed on the flashcard item itself (`front: true`) when explicitly selected.
+
+## Notebook-first AI Direction
+
+- Legacy model-centric entities (`Grammar`, `Vocabulary`, `Flashcard`) and their old CRUD/AI flow have been removed; keep all AI features notebook-native.
+- Breaking changes are allowed in notebook helpers such as `Gakugo.Learning.Notebook.Importer` when needed to align with notebook-first data shapes.
+- New AI functionality should be implemented in the notebook-first workflow (`UnitLive.ShowEdit` + notebook pages/items), including:
+  - import content from image
+  - import content from free text
+  - sentence translation generation directly in notebook context
+- Notebook import implementation notes:
+  - Import entrypoint lives in `UnitLive.ShowEdit` right-side `Import` drawer.
+  - Import action is single-step: if an image is selected, OCR runs first; OCR text is combined with textarea source and parsed together.
+  - OCR model is configured via `config :gakugo, :ollama, ocr_model: ...` (env: `OLLAMA_OCR_MODEL`) instead of hardcoding.
+  - `Gakugo.Learning.Notebook.Importer` is the notebook-native parsing/OCR integration point and should remain model-agnostic/heuristic-light.
+- Notebook sentence-translation generation notes:
+  - Generation entrypoints live in `UnitLive.ShowEdit` from both navbar `Generate` drawer and item options `Generate` button.
+  - Current supported generate type is `Translation practice`.
+  - Vocabulary input is prefilled from clicked item text when opened from item options.
+  - Grammar input comes from selected grammar page by randomly picking one deepest leaf branch and formatting its ancestor chain.
+  - Output location is explicit in drawer:
+    - `Under source item` (available only when opened from item context)
+    - `Append to page root` with selected output page
+  - Generated result is inserted as notebook nodes (`front` sentence + child `answer` sentence) through notebook editor flow.
+  - Integration point is `Gakugo.Learning.Notebook.TranslationPracticeGenerator`, using Ollama structured output via language-pair prompts in `FromTargetLang`.
+- AI entry points and generated outputs should stay in notebook page/item structures so users can edit and collaborate in one place.
 
 ## Project guidelines
 
@@ -516,11 +600,3 @@ And **never** do this:
 <!-- phoenix:liveview-end -->
 
 <!-- usage-rules-end -->
-
-<!-- AGENTS.local.md start -->
-
-@AGENTS.local.md
-
-<!-- AGENTS.local.md end -->
-
-> AGENTS.local.md imported by AGENTS.md is git-ignored, this can be used to track current work progress and personal docs across coding agent sessions

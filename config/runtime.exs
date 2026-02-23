@@ -20,20 +20,90 @@ if System.get_env("PHX_SERVER") do
   config :gakugo, GakugoWeb.Endpoint, server: true
 end
 
-config :gakugo, GakugoWeb.Endpoint,
-  http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+port = System.get_env("PORT")
 
-ollama_config =
-  [
-    {:base_url, System.get_env("OLLAMA_BASE_URL")},
-    {:model, System.get_env("OLLAMA_MODEL")},
-    {:host_header, System.get_env("OLLAMA_HOST_HEADER")}
-  ]
-  |> Enum.filter(fn {_k, v} -> v != nil end)
-
-if ollama_config != [] do
-  config :gakugo, :ollama, ollama_config
+if port do
+  config :gakugo, GakugoWeb.Endpoint, http: [port: String.to_integer(port)]
 end
+
+parse_ai_provider = fn
+  "ollama" -> :ollama
+  "openai" -> :openai
+  "gemini" -> :gemini
+  _ -> :gemini
+end
+
+put_if_present = fn key, env_var ->
+  case System.get_env(env_var) do
+    nil -> []
+    value -> [{key, value}]
+  end
+end
+
+ai_config = Application.get_env(:gakugo, :ai, [])
+ai_providers = Keyword.get(ai_config, :providers, [])
+ai_defaults = Keyword.get(ai_config, :defaults, [])
+
+updated_ai_providers = [
+  ollama:
+    ai_providers
+    |> Keyword.get(:ollama, [])
+    |> Keyword.merge(
+      put_if_present.(:base_url, "OLLAMA_BASE_URL") ++
+        put_if_present.(:api_key, "OLLAMA_API_KEY") ++
+        put_if_present.(:host_header, "OLLAMA_HOST_HEADER")
+    ),
+  openai:
+    ai_providers
+    |> Keyword.get(:openai, [])
+    |> Keyword.merge(
+      put_if_present.(:base_url, "OPENAI_BASE_URL") ++
+        put_if_present.(:api_key, "OPENAI_API_KEY")
+    ),
+  gemini:
+    ai_providers
+    |> Keyword.get(:gemini, [])
+    |> Keyword.merge(
+      put_if_present.(:base_url, "GEMINI_BASE_URL") ++
+        put_if_present.(:api_key, "GEMINI_API_KEY")
+    )
+]
+
+generation_defaults = Keyword.get(ai_defaults, :generation, [])
+parse_defaults = Keyword.get(ai_defaults, :parse, [])
+ocr_defaults = Keyword.get(ai_defaults, :ocr, [])
+
+updated_ai_defaults = [
+  generation:
+    generation_defaults
+    |> Keyword.merge(
+      case System.get_env("AI_GENERATION_PROVIDER") do
+        nil -> []
+        value -> [provider: parse_ai_provider.(value)]
+      end ++
+        put_if_present.(:model, "AI_GENERATION_MODEL")
+    ),
+  parse:
+    parse_defaults
+    |> Keyword.merge(
+      case System.get_env("AI_PARSE_PROVIDER") do
+        nil -> []
+        value -> [provider: parse_ai_provider.(value)]
+      end ++
+        put_if_present.(:model, "AI_PARSE_MODEL")
+    ),
+  ocr:
+    ocr_defaults
+    |> Keyword.merge(
+      case System.get_env("AI_OCR_PROVIDER") do
+        nil -> []
+        value -> [provider: parse_ai_provider.(value)]
+      end ++
+        put_if_present.(:model, "AI_OCR_MODEL")
+    )
+]
+
+config :gakugo, :ai, providers: updated_ai_providers, defaults: updated_ai_defaults
 
 anki_config =
   if config_env() == :prod do

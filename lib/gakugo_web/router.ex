@@ -21,8 +21,6 @@ defmodule GakugoWeb.Router do
     live "/units/new", UnitLive.Form, :new
     live "/units/:id", UnitLive.ShowEdit, :show
     live "/units/:id/edit", UnitLive.Form, :edit
-
-    live "/units/:unit_id/vocabularies/new", VocabularyLive.NewWizard, :new
   end
 
   # Other scopes may use custom stacks.

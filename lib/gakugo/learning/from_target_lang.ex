@@ -4,8 +4,6 @@ defmodule Gakugo.Learning.FromTargetLang do
   Each language pair has specific system prompts for AI operations.
   """
 
-  alias Gakugo.Learning.Grammar
-
   @type t :: String.t()
 
   @values ["JA-from-zh-TW"]
@@ -32,71 +30,88 @@ defmodule Gakugo.Learning.FromTargetLang do
   end
 
   @doc """
-  Returns the system prompt for vocabulary parsing.
+  Returns the system prompt for notebook import parsing.
   """
-  def vocabulary_parser_system_prompt("JA-from-zh-TW") do
+  def notebook_import_system_prompt("JA-from-zh-TW") do
     """
-    你好，請幫忙從使用者輸入的文字截取出日文單字清單，使用者輸入的文字中每個項目應有 日文原文 以及 中文翻譯，target 爲日文原文（平仮名），from 爲中文翻譯，輸入資料有平假名標示的發音的話以括弧標示在 target 日文原文後方，每個項目剩餘的資料放在 note 中，不要額外補充東西
+    你好，請幫忙從使用者輸入的文字截取出日文單字清單。
+    每個單字包含日文（平仮名）、以及繁體中文翻譯。
+    請輸出欄位 vocabulary（日文原文，若有讀音使用全形括弧附在後方）、translation（繁體中文翻譯）、note（補充）。
+    若輸入中日文與中文順序顛倒，仍要自動辨識並修正，確保 vocabulary 一定是日文、translation 一定是繁體中文。
+    每個項目剩餘的補充資料放在 note 中，不要額外補充任何說明。
+    輸入通常接近 markdown 巢狀清單（例如：* 日本語（にほんご） -> * 日文），但也要盡量容錯解析。
     """
   end
 
-  def vocabulary_parser_system_prompt(value) do
+  def notebook_import_system_prompt(value) do
     raise ArgumentError,
           "Unknown from_target_lang value: #{inspect(value)}. " <>
-            "Add a vocabulary_parser_system_prompt/1 clause for this value in #{__MODULE__}."
+            "Add a notebook_import_system_prompt/1 clause for this value in #{__MODULE__}."
   end
 
   @doc """
-  Returns the system prompt for flashcard generation.
+  Returns the OCR extraction prompt for notebook import.
   """
-  def flashcard_system_prompt("JA-from-zh-TW") do
+  def notebook_ocr_import_system_prompt("JA-from-zh-TW") do
     """
-    你好，請幫忙建立一個日文翻譯練習。
+    請完整擷取圖片中的文字，保留原本換行與順序，不要翻譯、不要總結。
+    若有日文假名與漢字請原樣保留，若有繁體中文也請原樣保留。
+    請只輸出擷取到的純文字內容，不要加上任何解釋。
+    """
+  end
+
+  def notebook_ocr_import_system_prompt(value) do
+    raise ArgumentError,
+          "Unknown from_target_lang value: #{inspect(value)}. " <>
+            "Add a notebook_ocr_import_system_prompt/1 clause for this value in #{__MODULE__}."
+  end
+
+  @doc """
+  Returns the system prompt for notebook translation practice generation.
+  """
+  def translation_practice_system_prompt("JA-from-zh-TW") do
+    """
+    你好，請幫忙建立一個日文翻譯練習句。
 
     輸入格式說明：
-    - 【單字】區塊包含要學習的日文單字（日文）及其中文意思（中文）
-    - 【文法】區塊包含可參考的句型及說明
+    - 【單字】是必須包含在句子裡的日文詞彙
+    - 【文法】是參考的文法分支（由上到下）
 
     重要規則：
-    - 產生的句子「必須」包含【單字】中的日文，這是最重要的要求
-    - 請儘量以【文法】的句型來進行造句，但若不適用可以用其他自然的句型
-    - 中文句子也必須自然地包含單字的中文意思
+    - 請務必讓日文句子包含【單字】
+    - 請盡量套用【文法】的語感與結構
+    - 中文句子要自然、可作為翻譯練習題目
 
     輸出格式（JSON）：
-    - translation_from：繁體中文句子（必須包含單字的意思）
-    - translation_target：日文句子（必須包含單字的日文）
-    - 可以的話請在 translation_target 使用括弧 "（ひらがな）" 標示漢字讀音
-    - 只需要一句句子，不需要其他說明
-
-    例如，若單字日文是「リンゴ」、中文是「蘋果」：
-    {"translation_from": "蘋果是紅色的", "translation_target": "リンゴは赤（あか）いです"}
+    - translation_from：繁體中文句子
+    - translation_target：日文句子
+    - 只輸出一句，不要附加任何說明
     """
   end
 
-  def flashcard_system_prompt(value) do
+  def translation_practice_system_prompt(value) do
     raise ArgumentError,
           "Unknown from_target_lang value: #{inspect(value)}. " <>
-            "Add a flashcard_system_prompt/1 clause for this value in #{__MODULE__}."
+            "Add a translation_practice_system_prompt/1 clause for this value in #{__MODULE__}."
   end
 
   @doc """
-  Returns the user prompt for flashcard generation.
+  Returns the user prompt for notebook translation practice generation.
   """
-  def flashcard_user_prompt("JA-from-zh-TW", vocabulary, grammar) do
+  def translation_practice_user_prompt("JA-from-zh-TW", vocabulary_text, grammar_text) do
     """
     【單字】
-    日文：#{vocabulary.target}
-    中文：#{vocabulary.from}
+    #{vocabulary_text}
 
     【文法】
-    #{Grammar.format(grammar)}
+    #{grammar_text}
     """
   end
 
-  def flashcard_user_prompt(value, _vocabulary, _grammar) do
+  def translation_practice_user_prompt(value, _vocabulary_text, _grammar_text) do
     raise ArgumentError,
           "Unknown from_target_lang value: #{inspect(value)}. " <>
-            "Add a flashcard_user_prompt/3 clause for this value in #{__MODULE__}."
+            "Add a translation_practice_user_prompt/3 clause for this value in #{__MODULE__}."
   end
 
   @doc """

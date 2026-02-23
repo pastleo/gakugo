@@ -42,3 +42,5 @@ config :gakugo, Gakugo.Anki,
   sync_endpoint: "http://localhost:8080/",
   sync_username: "test",
   sync_password: "test"
+
+config :gakugo, :ai, model_discovery_enabled: false

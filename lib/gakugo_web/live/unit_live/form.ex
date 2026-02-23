@@ -11,7 +11,7 @@ defmodule GakugoWeb.UnitLive.Form do
     <Layouts.app flash={@flash}>
       <.header>
         {@page_title}
-        <:subtitle>Use this form to manage unit records in your database.</:subtitle>
+        <:subtitle>Create a notebook-style unit for linked line learning.</:subtitle>
       </.header>
 
       <.form for={@form} id="unit-form" phx-change="validate" phx-submit="save">

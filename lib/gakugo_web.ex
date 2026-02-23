@@ -86,7 +86,6 @@ defmodule GakugoWeb do
       import Phoenix.HTML
       # Core UI components
       import GakugoWeb.CoreComponents
-      import GakugoWeb.LearningComponents
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

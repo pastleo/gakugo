@@ -22,15 +22,15 @@ defmodule Gakugo.LearningTest do
       assert fetched_unit.title == unit.title
     end
 
-    test "create_unit/1 with valid data creates a unit" do
-      valid_attrs = %{
-        title: "some title",
-        from_target_lang: "JA-from-zh-TW"
-      }
+    test "create_unit/1 with valid data creates a unit and default page" do
+      valid_attrs = %{title: "some title", from_target_lang: "JA-from-zh-TW"}
 
       assert {:ok, %Unit{} = unit} = Learning.create_unit(valid_attrs)
+      unit = Learning.get_unit!(unit.id)
       assert unit.title == "some title"
       assert unit.from_target_lang == "JA-from-zh-TW"
+      assert length(unit.pages) == 1
+      assert hd(unit.pages).title == "Page 1"
     end
 
     test "create_unit/1 with invalid data returns error changeset" do
@@ -62,10 +62,28 @@ defmodule Gakugo.LearningTest do
       assert fetched_unit.id == unit.id
     end
 
-    test "delete_unit/1 deletes the unit" do
+    test "delete_unit/1 soft deletes the unit" do
       unit = unit_fixture()
+
       assert {:ok, %Unit{}} = Learning.delete_unit(unit)
       assert_raise Ecto.NoResultsError, fn -> Learning.get_unit!(unit.id) end
+
+      deleted_unit = Learning.get_unit_with_deleted!(unit.id)
+      assert deleted_unit.deleted_at
+      assert Learning.list_units() == []
+      assert Enum.map(Learning.list_deleted_units(), & &1.id) == [unit.id]
+    end
+
+    test "restore_unit/1 restores a soft deleted unit" do
+      unit = unit_fixture()
+      assert {:ok, %Unit{}} = Learning.delete_unit(unit)
+
+      deleted_unit = Learning.get_unit_with_deleted!(unit.id)
+      assert {:ok, %Unit{} = restored_unit} = Learning.restore_unit(deleted_unit)
+
+      assert is_nil(restored_unit.deleted_at)
+      assert Learning.get_unit!(unit.id).id == unit.id
+      assert Learning.list_deleted_units() == []
     end
 
     test "change_unit/1 returns a unit changeset" do
@@ -74,145 +92,126 @@ defmodule Gakugo.LearningTest do
     end
   end
 
-  describe "grammars" do
-    alias Gakugo.Learning.Grammar
+  describe "pages" do
+    alias Gakugo.Learning.Page
 
     import Gakugo.LearningFixtures
 
-    @invalid_attrs %{title: nil, details: nil}
+    @invalid_attrs %{title: nil, unit_id: nil}
 
-    test "list_grammars/0 returns all grammars" do
-      grammar = grammar_fixture()
-      assert Learning.list_grammars() == [grammar]
+    test "list_pages_for_unit/1 returns all pages for a unit" do
+      unit = unit_fixture()
+      unit = Learning.get_unit!(unit.id)
+      page = page_fixture(%{unit_id: unit.id})
+
+      assert Enum.map(Learning.list_pages_for_unit(unit.id), & &1.id) == [
+               hd(unit.pages).id,
+               page.id
+             ]
     end
 
-    test "get_grammar!/1 returns the grammar with given id" do
-      grammar = grammar_fixture()
-      assert Learning.get_grammar!(grammar.id) == grammar
-    end
-
-    test "create_grammar/1 with valid data creates a grammar" do
+    test "create_page/1 with valid data creates a page" do
       unit = unit_fixture()
 
       valid_attrs = %{
-        title: "some title",
-        details: [
-          %{"detail" => "some detail"}
-        ],
-        unit_id: unit.id
+        title: "Page X",
+        unit_id: unit.id,
+        items: [%{"text" => "hello", "front" => true, "children" => []}]
       }
 
-      assert {:ok, %Grammar{} = grammar} = Learning.create_grammar(valid_attrs)
-      assert grammar.title == "some title"
-      assert grammar.details == valid_attrs.details
+      assert {:ok, %Page{} = page} = Learning.create_page(valid_attrs)
+      assert page.title == "Page X"
+      assert page.items == valid_attrs.items
+      assert page.position == 2
     end
 
-    test "create_grammar/1 with invalid data returns error changeset" do
-      assert {:error, %Ecto.Changeset{}} = Learning.create_grammar(@invalid_attrs)
+    test "create_page/1 with invalid data returns error changeset" do
+      assert {:error, %Ecto.Changeset{}} = Learning.create_page(@invalid_attrs)
     end
 
-    test "update_grammar/2 with valid data updates the grammar" do
-      grammar = grammar_fixture()
+    test "update_page/2 with valid data updates the page" do
+      page = page_fixture()
 
       update_attrs = %{
-        title: "some updated title",
-        details: [
-          %{"detail" => "some updated detail"}
-        ]
+        title: "Updated Page",
+        items: [%{"text" => "updated", "front" => false, "children" => []}]
       }
 
-      assert {:ok, %Grammar{} = grammar} = Learning.update_grammar(grammar, update_attrs)
-      assert grammar.title == "some updated title"
-      assert grammar.details == update_attrs.details
+      assert {:ok, %Page{} = page} = Learning.update_page(page, update_attrs)
+      assert page.title == "Updated Page"
+      assert page.items == update_attrs.items
     end
 
-    test "update_grammar/2 with invalid data returns error changeset" do
-      grammar = grammar_fixture()
-      assert {:error, %Ecto.Changeset{}} = Learning.update_grammar(grammar, @invalid_attrs)
-      assert grammar == Learning.get_grammar!(grammar.id)
+    test "update_page/2 with invalid data returns error changeset" do
+      page = page_fixture()
+      assert {:error, %Ecto.Changeset{}} = Learning.update_page(page, @invalid_attrs)
+      assert page.id == Learning.get_page!(page.id).id
     end
 
-    test "delete_grammar/1 deletes the grammar" do
-      grammar = grammar_fixture()
-      assert {:ok, %Grammar{}} = Learning.delete_grammar(grammar)
-      assert_raise Ecto.NoResultsError, fn -> Learning.get_grammar!(grammar.id) end
+    test "delete_page/1 deletes the page" do
+      page = page_fixture()
+      assert {:ok, %Page{}} = Learning.delete_page(page)
+      assert_raise Ecto.NoResultsError, fn -> Learning.get_page!(page.id) end
     end
 
-    test "change_grammar/1 returns a grammar changeset" do
-      grammar = grammar_fixture()
-      assert %Ecto.Changeset{} = Learning.change_grammar(grammar)
-    end
-  end
-
-  describe "vocabularies" do
-    alias Gakugo.Learning.Vocabulary
-
-    import Gakugo.LearningFixtures
-
-    @invalid_attrs %{target: nil, from: nil, note: nil}
-
-    test "list_vocabularies/0 returns all vocabularies" do
-      vocabulary = vocabulary_fixture()
-      assert Learning.list_vocabularies() == [vocabulary]
+    test "change_page/1 returns a page changeset" do
+      page = page_fixture()
+      assert %Ecto.Changeset{} = Learning.change_page(page)
     end
 
-    test "get_vocabulary!/1 returns the vocabulary with given id" do
-      vocabulary = vocabulary_fixture()
-      assert Learning.get_vocabulary!(vocabulary.id) == vocabulary
-    end
-
-    test "create_vocabulary/1 with valid data creates a vocabulary" do
+    test "move_page/2 swaps page ordering within unit" do
       unit = unit_fixture()
+      unit = Learning.get_unit!(unit.id)
+      first_page = hd(unit.pages)
 
-      valid_attrs = %{
-        target: "some target",
-        from: "some from",
-        note: "some note",
-        unit_id: unit.id
-      }
+      {:ok, second_page} =
+        Learning.create_page(%{
+          title: "Page 2",
+          unit_id: unit.id,
+          items: [%{"text" => "", "front" => false, "children" => []}]
+        })
 
-      assert {:ok, %Vocabulary{} = vocabulary} = Learning.create_vocabulary(valid_attrs)
-      assert vocabulary.target == "some target"
-      assert vocabulary.from == "some from"
-      assert vocabulary.note == "some note"
+      {:ok, third_page} =
+        Learning.create_page(%{
+          title: "Page 3",
+          unit_id: unit.id,
+          items: [%{"text" => "", "front" => false, "children" => []}]
+        })
+
+      assert Enum.map(Learning.list_pages_for_unit(unit.id), & &1.id) == [
+               first_page.id,
+               second_page.id,
+               third_page.id
+             ]
+
+      assert Enum.map(Learning.list_pages_for_unit(unit.id), & &1.position) == [1, 2, 3]
+
+      assert {:ok, :moved} = Learning.move_page(second_page, :up)
+
+      assert Enum.map(Learning.list_pages_for_unit(unit.id), & &1.id) == [
+               second_page.id,
+               first_page.id,
+               third_page.id
+             ]
+
+      assert Enum.map(Learning.list_pages_for_unit(unit.id), & &1.position) == [1, 2, 3]
+
+      assert {:ok, :moved} = Learning.move_page(second_page, :down)
+
+      assert Enum.map(Learning.list_pages_for_unit(unit.id), & &1.id) == [
+               first_page.id,
+               second_page.id,
+               third_page.id
+             ]
+
+      assert Enum.map(Learning.list_pages_for_unit(unit.id), & &1.position) == [1, 2, 3]
     end
 
-    test "create_vocabulary/1 with invalid data returns error changeset" do
-      assert {:error, %Ecto.Changeset{}} = Learning.create_vocabulary(@invalid_attrs)
-    end
+    test "move_page/2 returns boundary error at list edge" do
+      unit = unit_fixture()
+      first_page = unit.id |> Learning.get_unit!() |> Map.get(:pages) |> hd()
 
-    test "update_vocabulary/2 with valid data updates the vocabulary" do
-      vocabulary = vocabulary_fixture()
-
-      update_attrs = %{
-        target: "some updated target",
-        from: "some updated from",
-        note: "some updated note"
-      }
-
-      assert {:ok, %Vocabulary{} = vocabulary} =
-               Learning.update_vocabulary(vocabulary, update_attrs)
-
-      assert vocabulary.target == "some updated target"
-      assert vocabulary.from == "some updated from"
-      assert vocabulary.note == "some updated note"
-    end
-
-    test "update_vocabulary/2 with invalid data returns error changeset" do
-      vocabulary = vocabulary_fixture()
-      assert {:error, %Ecto.Changeset{}} = Learning.update_vocabulary(vocabulary, @invalid_attrs)
-      assert vocabulary == Learning.get_vocabulary!(vocabulary.id)
-    end
-
-    test "delete_vocabulary/1 deletes the vocabulary" do
-      vocabulary = vocabulary_fixture()
-      assert {:ok, %Vocabulary{}} = Learning.delete_vocabulary(vocabulary)
-      assert_raise Ecto.NoResultsError, fn -> Learning.get_vocabulary!(vocabulary.id) end
-    end
-
-    test "change_vocabulary/1 returns a vocabulary changeset" do
-      vocabulary = vocabulary_fixture()
-      assert %Ecto.Changeset{} = Learning.change_vocabulary(vocabulary)
+      assert {:error, :boundary} = Learning.move_page(first_page, :up)
     end
   end
 end

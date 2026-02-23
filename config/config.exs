@@ -71,10 +71,27 @@ config :pythonx, :uv_init,
   ]
   """
 
-config :gakugo, :ollama,
-  base_url: "http://localhost:11434",
-  model: "gemma3:12b",
-  host_header: "localhost"
+config :gakugo, :ai,
+  providers: [
+    gemini: [
+      base_url: "https://generativelanguage.googleapis.com/v1beta",
+      api_key: nil
+    ],
+    openai: [
+      base_url: "https://api.openai.com/v1",
+      api_key: nil
+    ],
+    ollama: [
+      base_url: nil,
+      api_key: nil,
+      host_header: "localhost"
+    ]
+  ],
+  defaults: [
+    ocr: [provider: :gemini, model: "gemini-2.5-flash"],
+    parse: [provider: :gemini, model: "gemini-2.5-flash"],
+    generation: [provider: :gemini, model: "gemini-2.5-flash"]
+  ]
 
 config :gakugo, Gakugo.Anki,
   collection_path: Path.expand("../priv/anki/collection.anki2", __DIR__),
