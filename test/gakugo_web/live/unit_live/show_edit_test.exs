@@ -86,7 +86,7 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
     assert has_element?(view, "#unit-import-panel-toggle")
     refute has_element?(view, "#unit-drawer-toggle[checked]")
     assert has_element?(view, "#add-page-btn")
-    assert has_element?(view, "textarea[id$='-0']")
+    assert has_element?(view, "div[id^='item-input-'][id$='-0']")
   end
 
   test "navbar toggles side panels", %{conn: conn} do
@@ -250,8 +250,13 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
     })
 
     assert has_element?(view, "#flash-info", "Generated translation practice")
-    assert has_element?(view, "#item-input-#{vocab_page.id}-0-0", "題目：興味（きょうみ）")
-    assert has_element?(view, "#item-input-#{vocab_page.id}-0-0-0", "答案：興味（きょうみ）")
+
+    assert has_element?(
+             view,
+             "#item-input-#{vocab_page.id}-0-0[data-text*='題目：興味（きょうみ）']"
+           )
+
+    assert has_element?(view, "#item-input-#{vocab_page.id}-0-0-0[data-text='答案：興味（きょうみ）']")
   end
 
   test "generate from navbar can append to selected page root", %{conn: conn} do
@@ -328,9 +333,20 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
       }
     })
 
-    assert has_element?(view, "#page-card-#{second_page.id} textarea", "題目：興味（きょうみ）")
-    assert has_element?(view, "#page-card-#{second_page.id} textarea", "答案：興味（きょうみ）")
-    refute has_element?(view, "#page-card-#{default_page.id} textarea", "題目：興味（きょうみ）")
+    assert has_element?(
+             view,
+             "#page-card-#{second_page.id} div[id^='item-input-'][data-text*='題目：興味（きょうみ）']"
+           )
+
+    assert has_element?(
+             view,
+             "#page-card-#{second_page.id} div[id^='item-input-'][data-text='答案：興味（きょうみ）']"
+           )
+
+    refute has_element?(
+             view,
+             "#page-card-#{default_page.id} div[id^='item-input-'][data-text*='題目：興味（きょうみ）']"
+           )
   end
 
   test "generate uses selected ai model from drawer", %{conn: conn} do
@@ -390,8 +406,15 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
       }
     })
 
-    assert has_element?(view, "#page-card-#{page.id} textarea", "gpt-4.1-mini 題目：興味（きょうみ）")
-    assert has_element?(view, "#page-card-#{page.id} textarea", "gpt-4.1-mini 答案：興味（きょうみ）")
+    assert has_element?(
+             view,
+             "#page-card-#{page.id} div[id^='item-input-'][data-text*='gpt-4.1-mini 題目：興味（きょうみ）']"
+           )
+
+    assert has_element?(
+             view,
+             "#page-card-#{page.id} div[id^='item-input-'][data-text='gpt-4.1-mini 答案：興味（きょうみ）']"
+           )
   end
 
   test "parse import requires source text", %{conn: conn} do
@@ -439,13 +462,13 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
     })
 
     assert has_element?(view, "#flash-info", "Imported 2 vocabularies")
-    assert has_element?(view, "textarea[id$='-1']", "情報（じょうほう）")
-    assert has_element?(view, "textarea[id$='-1-0']", "情報、資訊")
+    assert has_element?(view, "div[id^='item-input-'][id$='-1'][data-text='情報（じょうほう）']")
+    assert has_element?(view, "div[id^='item-input-'][id$='-1-0'][data-text='情報、資訊']")
     assert has_element?(view, "#item-options-#{page.id}-1 summary", "F")
     refute has_element?(view, "#item-options-#{page.id}-1-0 summary", "A")
 
-    assert has_element?(view, "textarea[id$='-2']", "興味（きょうみ）")
-    assert has_element?(view, "textarea[id$='-2-0']", "興趣")
+    assert has_element?(view, "div[id^='item-input-'][id$='-2'][data-text='興味（きょうみ）']")
+    assert has_element?(view, "div[id^='item-input-'][id$='-2-0'][data-text='興趣']")
     assert has_element?(view, "#item-options-#{page.id}-2 summary", "F")
   end
 
@@ -481,8 +504,15 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
       }
     })
 
-    assert has_element?(view, "#page-card-#{page.id} textarea", "model:gemini-2.0-flash")
-    assert has_element?(view, "#page-card-#{page.id} textarea", "translated by gemini-2.0-flash")
+    assert has_element?(
+             view,
+             "#page-card-#{page.id} div[id^='item-input-'][data-text='model:gemini-2.0-flash']"
+           )
+
+    assert has_element?(
+             view,
+             "#page-card-#{page.id} div[id^='item-input-'][data-text='translated by gemini-2.0-flash']"
+           )
   end
 
   test "items inside a flashcard branch use answer mode", %{conn: conn} do
@@ -550,20 +580,6 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
     assert has_element?(view, "#item-options-#{page.id}-1 summary", "F")
   end
 
-  test "valid item link shows open external action", %{conn: conn} do
-    unit = unit_fixture()
-    unit = Learning.get_unit!(unit.id)
-    page = hd(unit.pages)
-
-    {:ok, view, _html} = live(conn, ~p"/units/#{unit.id}")
-
-    view
-    |> element("form[phx-change='edit_node_link']")
-    |> render_change(%{"path" => "0", "link" => "https://example.com", "page_id" => page.id})
-
-    assert has_element?(view, "a[title='Open external link'][href='https://example.com']")
-  end
-
   test "item with flashcard children cannot be set as flashcard", %{conn: conn} do
     unit = unit_fixture()
     unit = Learning.get_unit!(unit.id)
@@ -587,15 +603,13 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
     unit = unit_fixture()
     {:ok, view, _html} = live(conn, ~p"/units/#{unit.id}")
 
-    view
-    |> element("form[phx-change='edit_node_text']")
-    |> render_change(%{"path" => "0", "text" => "hello"})
+    render_hook(view, "edit_node_text", %{"path" => "0", "text" => "hello"})
 
     render_hook(view, "item_enter", %{"path" => "0"})
-    assert has_element?(view, "textarea[id$='-0-0']")
+    assert has_element?(view, "div[id^='item-input-'][id$='-0-0']")
 
     render_hook(view, "item_delete_empty", %{"path" => "0.0"})
-    refute has_element?(view, "textarea[id$='-0-0']")
+    refute has_element?(view, "div[id^='item-input-'][id$='-0-0']")
   end
 
   test "tab and shift-tab keybinding events indent and outdent", %{conn: conn} do
@@ -604,13 +618,134 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
 
     render_hook(view, "item_enter", %{"path" => "0", "text" => ""})
 
-    assert has_element?(view, "textarea[id$='-1']")
+    assert has_element?(view, "div[id^='item-input-'][id$='-1']")
 
     render_hook(view, "item_indent", %{"path" => "1", "text" => "second"})
-    assert has_element?(view, "textarea[id$='-0-0']")
+    assert has_element?(view, "div[id^='item-input-'][id$='-0-0']")
 
     render_hook(view, "item_outdent", %{"path" => "0.0", "text" => "second"})
-    assert has_element?(view, "textarea[id$='-1']")
+    assert has_element?(view, "div[id^='item-input-'][id$='-1']")
+  end
+
+  test "item_enter uses plain_text for empty rich text payload", %{conn: conn} do
+    unit = unit_fixture()
+    unit = Learning.get_unit!(unit.id)
+    page = hd(unit.pages)
+    {:ok, view, _html} = live(conn, ~p"/units/#{unit.id}")
+
+    render_hook(view, "item_enter", %{
+      "path" => "0",
+      "page_id" => page.id,
+      "text" => "<p><br></p>",
+      "plain_text" => ""
+    })
+
+    assert has_element?(view, "div[id^='item-input-'][id$='-1']")
+  end
+
+  test "edit_node_text sanitizes rich text payload and keeps safe links", %{conn: conn} do
+    unit = unit_fixture()
+    unit = Learning.get_unit!(unit.id)
+    page = hd(unit.pages)
+    {:ok, view, _html} = live(conn, ~p"/units/#{unit.id}")
+
+    render_hook(view, "edit_node_text", %{
+      "path" => "0",
+      "page_id" => page.id,
+      "text" =>
+        "<p onclick=\"x\">hello <a href=\"https://example.com\">world</a><script>alert(1)</script></p>"
+    })
+
+    send(view.pid, {:auto_save_page, page.id})
+    _ = :sys.get_state(view.pid)
+
+    sanitized_text =
+      page.id
+      |> Learning.get_page!()
+      |> Map.get(:items)
+      |> hd()
+      |> Map.get("text")
+
+    assert sanitized_text == "<p>hello <a href=\"https://example.com\">world</a></p>"
+  end
+
+  test "edit_node_text removes unsafe link protocols", %{conn: conn} do
+    unit = unit_fixture()
+    unit = Learning.get_unit!(unit.id)
+    page = hd(unit.pages)
+    {:ok, view, _html} = live(conn, ~p"/units/#{unit.id}")
+
+    render_hook(view, "edit_node_text", %{
+      "path" => "0",
+      "page_id" => page.id,
+      "text" => "<p><a href=\"javascript:alert(1)\">bad</a> <a href=\"/safe\">good</a></p>"
+    })
+
+    send(view.pid, {:auto_save_page, page.id})
+    _ = :sys.get_state(view.pid)
+
+    sanitized_text =
+      page.id
+      |> Learning.get_page!()
+      |> Map.get(:items)
+      |> hd()
+      |> Map.get("text")
+
+    assert sanitized_text == "<p><a>bad</a> <a href=\"/safe\">good</a></p>"
+  end
+
+  test "edit_node_text keeps safe text and background colors", %{conn: conn} do
+    unit = unit_fixture()
+    unit = Learning.get_unit!(unit.id)
+    page = hd(unit.pages)
+    {:ok, view, _html} = live(conn, ~p"/units/#{unit.id}")
+
+    render_hook(view, "edit_node_text", %{
+      "path" => "0",
+      "page_id" => page.id,
+      "text" =>
+        ~s|<p><span style="color: rgb(230, 0, 0); background-color: rgb(255, 255, 0); font-size: 99px;">color</span></p>|
+    })
+
+    send(view.pid, {:auto_save_page, page.id})
+    _ = :sys.get_state(view.pid)
+
+    sanitized_text =
+      page.id
+      |> Learning.get_page!()
+      |> Map.get(:items)
+      |> hd()
+      |> Map.get("text")
+
+    assert sanitized_text ==
+             ~s|<p><span style="color: rgb(230, 0, 0); background-color: rgb(255, 255, 0)">color</span></p>|
+  end
+
+  test "edit_node_text keeps safe image urls and image layout attributes", %{conn: conn} do
+    unit = unit_fixture()
+    unit = Learning.get_unit!(unit.id)
+    page = hd(unit.pages)
+    {:ok, view, _html} = live(conn, ~p"/units/#{unit.id}")
+
+    render_hook(view, "edit_node_text", %{
+      "path" => "0",
+      "page_id" => page.id,
+      "text" =>
+        ~s|<p><img src="https://example.com/cat.png" width="320" height="180" class="notebook-image-center extra-class" onerror="x"><img src="data:image/png;base64,AAAA" width="abc"><img src="javascript:alert(1)" class="notebook-image-right"></p>|
+    })
+
+    send(view.pid, {:auto_save_page, page.id})
+    _ = :sys.get_state(view.pid)
+
+    sanitized_text =
+      page.id
+      |> Learning.get_page!()
+      |> Map.get(:items)
+      |> hd()
+      |> Map.get("text")
+
+    assert sanitized_text ==
+             ~s|<p><img src="https://example.com/cat.png" width="320" height="180" class="notebook-image-center"><img><img class="notebook-image-right"></p>|
   end
 
   test "edit_node_text prefers node_id over path", %{conn: conn} do
@@ -630,8 +765,8 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
       "page_id" => page.id
     })
 
-    assert has_element?(view, "textarea[id$='-0']", "updated by id")
-    assert has_element?(view, "textarea[id$='-1']", "second")
+    assert has_element?(view, "div[id^='item-input-'][id$='-0'][data-text='updated by id']")
+    assert has_element?(view, "div[id^='item-input-'][id$='-1'][data-text='second']")
   end
 
   test "item_enter supports node_id-only payload", %{conn: conn} do
@@ -650,7 +785,7 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
       "text" => "first"
     })
 
-    assert has_element?(view, "textarea[id$='-0-0']")
+    assert has_element?(view, "div[id^='item-input-'][id$='-0-0']")
   end
 
   test "page card delete uses confirmation and removes selected page", %{conn: conn} do
@@ -718,8 +853,8 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
       "position" => "before"
     })
 
-    assert has_element?(view, "#item-input-#{page.id}-0", "second")
-    assert has_element?(view, "#item-input-#{page.id}-1", "first")
+    assert has_element?(view, "#item-input-#{page.id}-0[data-text='second']")
+    assert has_element?(view, "#item-input-#{page.id}-1[data-text='first']")
   end
 
   test "move_item supports cross-page move to root end", %{conn: conn} do
@@ -749,8 +884,8 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
       "position" => "root_end"
     })
 
-    assert has_element?(view, "#item-input-#{page_one.id}-0", "source second")
-    assert has_element?(view, "#item-input-#{page_two.id}-2", "source first")
+    assert has_element?(view, "#item-input-#{page_one.id}-0[data-text='source second']")
+    assert has_element?(view, "#item-input-#{page_two.id}-2[data-text='source first']")
   end
 
   test "flashcard without answer items still appears in flashcard list", %{
@@ -803,6 +938,33 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
     assert has_element?(view, "#page-card-#{second_page.id}")
   end
 
+  test "flashcard preview strips html markup to plain text", %{conn: conn} do
+    unit = unit_fixture()
+    unit = Learning.get_unit!(unit.id)
+    page = hd(unit.pages)
+
+    {:ok, _page} =
+      Learning.update_page(page, %{
+        title: page.title,
+        items: [
+          %{
+            "text" =>
+              "<p><strong>front</strong> <a href=\"https://example.com\">link</a><br>tail</p>",
+            "front" => true,
+            "children" => []
+          }
+        ]
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/units/#{unit.id}")
+
+    view |> element("#flashcards-panel-toggle") |> render_click()
+
+    assert has_element?(view, "#flashcards-panel", "front link tail")
+    refute has_element?(view, "#flashcards-panel", "<strong>")
+    refute has_element?(view, "#flashcards-panel", "<a href")
+  end
+
   test "two sessions converge after notebook edit", %{conn: conn} do
     unit = unit_fixture()
     unit = Learning.get_unit!(unit.id)
@@ -822,7 +984,7 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
     assert_receive {:notebook_operation, _operation}
     _ = :sys.get_state(view_two.pid)
 
-    assert has_element?(view_two, "textarea[id$='-0']", "shared edit")
+    assert has_element?(view_two, "div[id^='item-input-'][id$='-0'][data-text='shared edit']")
   end
 
   test "duplicate op_id operation is applied only once", %{conn: conn} do
@@ -847,8 +1009,8 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
     send(view.pid, {:notebook_operation, operation})
     _ = :sys.get_state(view.pid)
 
-    assert has_element?(view, "textarea[id$='-0-0']")
-    refute has_element?(view, "textarea[id$='-0-1']")
+    assert has_element?(view, "div[id^='item-input-'][id$='-0-0']")
+    refute has_element?(view, "div[id^='item-input-'][id$='-0-1']")
   end
 
   test "stale version operation is ignored", %{conn: conn} do
@@ -890,8 +1052,8 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
 
     _ = :sys.get_state(view.pid)
 
-    assert has_element?(view, "textarea[id$='-0']", "newest text")
-    refute has_element?(view, "textarea[id$='-0']", "stale text")
+    assert has_element?(view, "div[id^='item-input-'][id$='-0'][data-text='newest text']")
+    refute has_element?(view, "div[id^='item-input-'][id$='-0'][data-text='stale text']")
   end
 
   test "add page reflects to another session", %{conn: conn} do
@@ -955,7 +1117,7 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
 
     _ = :sys.get_state(view_two.pid)
 
-    assert has_element?(view_two, "textarea[id$='-0']", "second change")
+    assert has_element?(view_two, "div[id^='item-input-'][id$='-0'][data-text='second change']")
   end
 
   test "early session receives updates from later session", %{conn: conn} do
@@ -981,7 +1143,10 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
 
     _ = :sys.get_state(view_one.pid)
 
-    assert has_element?(view_one, "textarea[id$='-0']", "second tab update")
+    assert has_element?(
+             view_one,
+             "div[id^='item-input-'][id$='-0'][data-text='second tab update']"
+           )
   end
 
   test "late-joined session converges on dependent operations", %{conn: conn} do
@@ -1007,7 +1172,10 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
 
     _ = :sys.get_state(view_two.pid)
 
-    assert has_element?(view_two, "textarea[id$='-0-0']", "child from op2")
+    assert has_element?(
+             view_two,
+             "div[id^='item-input-'][id$='-0-0'][data-text='child from op2']"
+           )
   end
 
   test "item lock disables peer editing and blocks conflicting edits", %{conn: conn} do
@@ -1025,7 +1193,7 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
 
     _ = :sys.get_state(view_two.pid)
 
-    assert has_element?(view_two, "textarea[id$='-0'][disabled]")
+    assert has_element?(view_two, "div[id^='item-input-'][id$='-0'][data-disabled='true']")
     assert has_element?(view_two, "#item-locked-badge-#{page.id}-0")
 
     render_hook(view_two, "edit_node_text", %{
@@ -1036,7 +1204,7 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
 
     _ = :sys.get_state(view_one.pid)
 
-    refute has_element?(view_one, "textarea[id$='-0']", "blocked edit")
+    refute has_element?(view_one, "div[id^='item-input-'][id$='-0'][data-text='blocked edit']")
 
     render_hook(view_one, "item_lock_release", %{
       "path" => "0",
@@ -1045,7 +1213,7 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
 
     _ = :sys.get_state(view_two.pid)
 
-    refute has_element?(view_two, "textarea[id$='-0'][disabled]")
+    refute has_element?(view_two, "div[id^='item-input-'][id$='-0'][data-disabled='true']")
   end
 
   test "unit and page title inputs lock while another collaborator focuses them", %{conn: conn} do
@@ -1146,7 +1314,7 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
 
     _ = :sys.get_state(view_two.pid)
 
-    assert has_element?(view_two, "textarea[id$='-0'][disabled]")
+    assert has_element?(view_two, "div[id^='item-input-'][id$='-0'][data-disabled='true']")
 
     view_two
     |> element("#add-item-last-#{page.id}")
@@ -1154,7 +1322,7 @@ defmodule GakugoWeb.UnitLive.ShowEditTest do
 
     _ = :sys.get_state(view_two.pid)
 
-    assert has_element?(view_two, "textarea[id$='-1']")
+    assert has_element?(view_two, "div[id^='item-input-'][id$='-1']")
   end
 
   defp notebook_items_without_answer do

@@ -78,14 +78,78 @@ defmodule Gakugo.Learning.Notebook.EditorTest do
     assert :noop = Editor.apply([make_node("")], {:item_delete_empty, [0], ""})
   end
 
-  test "item_delete_empty removes node and focuses previous node" do
-    nodes = [make_node("a"), make_node("b")]
+  test "item_delete_empty_backward removes node and focuses previous sibling or parent" do
+    nodes = [make_node("a"), make_node("", "b")]
 
     assert {:ok, %{nodes: next_nodes, focus_path: [0]}} =
-             Editor.apply(nodes, {:item_delete_empty, [1], ""})
+             Editor.apply(nodes, {:item_delete_empty_backward, [1], ""})
 
     assert length(next_nodes) == 1
     assert Tree.get_node(next_nodes, [0])["text"] == "a"
+  end
+
+  test "item_delete_empty_forward removes node and focuses next sibling" do
+    nodes = [make_node("", "a"), make_node("b", "b")]
+
+    assert {:ok, %{nodes: next_nodes, focus_path: [0]}} =
+             Editor.apply(nodes, {:item_delete_empty_forward, [0], ""})
+
+    assert length(next_nodes) == 1
+    assert Tree.get_node(next_nodes, [0])["id"] == "b"
+  end
+
+  test "item_delete_empty_backward focuses parent when there is no previous sibling" do
+    nodes = [
+      %{
+        "id" => "root",
+        "text" => "root",
+        "front" => false,
+        "answer" => false,
+        "link" => "",
+        "children" => [make_node("", "child")]
+      }
+    ]
+
+    assert {:ok, %{nodes: next_nodes, focus_path: [0]}} =
+             Editor.apply(nodes, {:item_delete_empty_backward, %{"node_id" => "child"}, ""})
+
+    assert Tree.get_node(next_nodes, [0])["id"] == "root"
+  end
+
+  test "item_delete_empty_forward focuses parent next sibling when no next sibling exists" do
+    nodes = [
+      %{
+        "id" => "root",
+        "text" => "root",
+        "front" => false,
+        "answer" => false,
+        "link" => "",
+        "children" => [make_node("", "child")]
+      },
+      make_node("after-root", "after-root")
+    ]
+
+    assert {:ok, %{nodes: next_nodes, focus_path: [1]}} =
+             Editor.apply(nodes, {:item_delete_empty_forward, %{"node_id" => "child"}, ""})
+
+    assert Tree.get_node(next_nodes, [1])["id"] == "after-root"
+  end
+
+  test "item_delete_empty returns noop when target has children" do
+    nodes = [
+      %{
+        "id" => "root",
+        "text" => "",
+        "front" => false,
+        "answer" => false,
+        "link" => "",
+        "children" => [make_node("child", "child")]
+      },
+      make_node("after", "after")
+    ]
+
+    assert :noop = Editor.apply(nodes, {:item_delete_empty_backward, %{"node_id" => "root"}, ""})
+    assert :noop = Editor.apply(nodes, {:item_delete_empty_forward, %{"node_id" => "root"}, ""})
   end
 
   test "item_enter supports node_id-only targeting" do
@@ -110,16 +174,142 @@ defmodule Gakugo.Learning.Notebook.EditorTest do
     assert Tree.get_node(next_nodes, [0])["text"] == "first"
   end
 
-  test "edit_link trims link value" do
-    nodes = [make_node("first", "id-first")]
+  test "insert_child_first prepends child and focuses it" do
+    nodes = [
+      %{
+        "id" => "root",
+        "text" => "root",
+        "front" => false,
+        "answer" => false,
+        "link" => "",
+        "children" => [make_node("existing-child", "child-1")]
+      }
+    ]
 
-    assert {:ok, %{nodes: next_nodes}} =
+    assert {:ok, %{nodes: next_nodes, focus_path: [0, 0]}} =
+             Editor.apply(nodes, {:insert_child_first, [0], "root"})
+
+    assert Tree.get_node(next_nodes, [0, 0])["text"] == ""
+    assert Tree.get_node(next_nodes, [0, 1])["id"] == "child-1"
+  end
+
+  test "insert_above inserts sibling before current path and focuses it" do
+    nodes = [make_node("first", "id-first"), make_node("second", "id-second")]
+
+    assert {:ok, %{nodes: next_nodes, focus_path: [1]}} =
+             Editor.apply(nodes, {:insert_above, %{"node_id" => "id-second"}, "second"})
+
+    assert Tree.get_node(next_nodes, [0])["id"] == "id-first"
+    assert Tree.get_node(next_nodes, [1])["text"] == ""
+    assert Tree.get_node(next_nodes, [2])["id"] == "id-second"
+  end
+
+  test "insert_below inserts sibling after current path and focuses it" do
+    nodes = [make_node("first", "id-first"), make_node("second", "id-second")]
+
+    assert {:ok, %{nodes: next_nodes, focus_path: [1]}} =
+             Editor.apply(nodes, {:insert_below, %{"node_id" => "id-first"}, "first"})
+
+    assert Tree.get_node(next_nodes, [0])["id"] == "id-first"
+    assert Tree.get_node(next_nodes, [1])["text"] == ""
+    assert Tree.get_node(next_nodes, [2])["id"] == "id-second"
+  end
+
+  test "item_empty_enter outdents when node is the last child" do
+    nodes = [
+      %{
+        "id" => "root",
+        "text" => "root",
+        "front" => false,
+        "answer" => false,
+        "link" => "",
+        "children" => [make_node("", "child-id")]
+      }
+    ]
+
+    assert {:ok, %{nodes: next_nodes, focus_path: [1]}} =
+             Editor.apply(nodes, {:item_empty_enter, %{"node_id" => "child-id"}, ""})
+
+    assert Tree.get_node(next_nodes, [1])["id"] == "child-id"
+  end
+
+  test "item_empty_enter inserts below when node is not the last child" do
+    nodes = [
+      %{
+        "id" => "root",
+        "text" => "root",
+        "front" => false,
+        "answer" => false,
+        "link" => "",
+        "children" => [make_node("", "child-id"), make_node("after", "after-id")]
+      }
+    ]
+
+    assert {:ok, %{nodes: next_nodes, focus_path: [0, 1]}} =
+             Editor.apply(nodes, {:item_empty_enter, %{"node_id" => "child-id"}, ""})
+
+    assert Tree.get_node(next_nodes, [0, 0])["id"] == "child-id"
+    assert Tree.get_node(next_nodes, [0, 1])["text"] == ""
+    assert Tree.get_node(next_nodes, [0, 2])["id"] == "after-id"
+  end
+
+  test "focus_previous_sibling follows the visual previous item" do
+    nodes = [
+      %{
+        "id" => "root",
+        "text" => "root",
+        "front" => false,
+        "answer" => false,
+        "link" => "",
+        "children" => [
+          make_node("first", "id-first"),
+          %{
+            "id" => "id-second",
+            "text" => "second",
+            "front" => false,
+            "answer" => false,
+            "link" => "",
+            "children" => [make_node("deep", "id-deep")]
+          }
+        ]
+      },
+      make_node("third", "id-third")
+    ]
+
+    assert {:ok, %{nodes: ^nodes, focus_path: [0, 0]}} =
+             Editor.apply(nodes, {:focus_previous_sibling, %{"node_id" => "id-second"}})
+
+    assert {:ok, %{nodes: ^nodes, focus_path: [0]}} =
+             Editor.apply(nodes, {:focus_previous_sibling, %{"node_id" => "id-first"}})
+
+    assert {:ok, %{nodes: ^nodes, focus_path: [0, 1, 0]}} =
+             Editor.apply(nodes, {:focus_previous_sibling, %{"node_id" => "id-third"}})
+  end
+
+  test "focus_first_child_or_next_sibling prefers first child then next available sibling" do
+    nodes = [
+      %{
+        "id" => "root",
+        "text" => "root",
+        "front" => false,
+        "answer" => false,
+        "link" => "",
+        "children" => [make_node("child", "child-id")]
+      },
+      make_node("sibling", "sibling-id")
+    ]
+
+    assert {:ok, %{nodes: ^nodes, focus_path: [0, 0]}} =
+             Editor.apply(nodes, {:focus_first_child_or_next_sibling, %{"node_id" => "root"}})
+
+    assert {:ok, %{nodes: ^nodes, focus_path: [1]}} =
+             Editor.apply(nodes, {:focus_first_child_or_next_sibling, %{"node_id" => "child-id"}})
+
+    assert {:ok, %{nodes: ^nodes, focus_path: nil}} =
              Editor.apply(
                nodes,
-               {:edit_link, %{"node_id" => "id-first"}, "  https://example.com  "}
+               {:focus_first_child_or_next_sibling, %{"node_id" => "sibling-id"}}
              )
-
-    assert Tree.get_node(next_nodes, [0])["link"] == "https://example.com"
   end
 
   test "toggle_flag front is blocked under front ancestor" do

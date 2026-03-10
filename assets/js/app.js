@@ -19,12 +19,14 @@
 
 // Include phoenix_html to handle method=PUT/DELETE in forms and buttons.
 import "phoenix_html"
+import "quill"
 // Establish Phoenix Socket and LiveView configuration.
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/gakugo"
 import {
   NotebookItem,
+  NotebookItemEditor,
   ItemOptionsBubble,
   CollaborativeInputLock,
   NotebookDnd,
@@ -38,6 +40,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
   hooks: {
     ...colocatedHooks,
     NotebookItem,
+    NotebookItemEditor,
     ItemOptionsBubble,
     CollaborativeInputLock,
     NotebookDnd,

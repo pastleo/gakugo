@@ -2,21 +2,6 @@ defmodule GakugoWeb.UnitLive.ShowEditHelpers do
   alias Gakugo.Learning
   alias Gakugo.Learning.Notebook.Tree
 
-  def external_link?(link) when is_binary(link) do
-    link = String.trim(link)
-
-    case URI.parse(link) do
-      %URI{scheme: scheme, host: host}
-      when scheme in ["http", "https"] and is_binary(host) and host != "" ->
-        true
-
-      _ ->
-        false
-    end
-  end
-
-  def external_link?(_), do: false
-
   def unit_for_flashcard_preview(assigns) do
     pages =
       Enum.map(assigns.unit.pages, fn page ->
@@ -34,12 +19,24 @@ defmodule GakugoWeb.UnitLive.ShowEditHelpers do
         page.items
         |> flatten_nodes_for_fronts()
         |> Enum.filter(& &1["front"])
-        |> Enum.map(fn node -> String.trim(node["text"] || "") end)
+        |> Enum.map(fn node -> flashcard_preview_text(node["text"]) end)
 
       %{title: page.title, fronts: fronts}
     end)
     |> Enum.filter(&(&1.fronts != []))
   end
+
+  defp flashcard_preview_text(text) when is_binary(text) do
+    text
+    |> String.replace(~r/<br\s*\/?\s*>/i, " ")
+    |> String.replace(~r/<\/p\s*>/i, " ")
+    |> String.replace(~r/<\/li\s*>/i, " ")
+    |> String.replace(~r/<[^>]*>/, "")
+    |> String.replace(~r/\s+/, " ")
+    |> String.trim()
+  end
+
+  defp flashcard_preview_text(nil), do: ""
 
   def build_page_states(unit, existing_states \\ %{}) do
     Map.new(unit.pages, fn page ->

@@ -30,52 +30,102 @@ defmodule Gakugo.Learning.Notebook.Editor do
             {Tree.normalize_nodes(nodes), Tree.sibling_path(path)}
 
           true ->
-            child_path = path ++ [length(current["children"] || [])]
-
-            nodes =
-              nodes_with_latest_text
-              |> Tree.update_node(path, fn node ->
-                children = node["children"] || []
-                Map.put(node, "children", children ++ [Tree.new_node()])
-              end)
-              |> Tree.normalize_nodes()
-
-            {nodes, child_path}
+            insert_child_first(nodes_with_latest_text, path)
         end
 
       {:ok, %{nodes: next_nodes, focus_path: focus_path}}
     end
   end
 
-  def apply(nodes, {:item_delete_empty, target, text}) do
+  def apply(nodes, {:insert_child_first, target, text}) do
     with {:ok, path} <- resolve_target_path(nodes, target) do
       nodes_with_latest_text = Tree.apply_inline_text(nodes, path, text)
-
-      if Tree.node_count(nodes_with_latest_text) <= 1 do
-        :noop
-      else
-        focus_path = Tree.previous_path(nodes_with_latest_text, path)
-
-        nodes =
-          nodes_with_latest_text
-          |> Tree.delete_node(path)
-          |> Tree.normalize_nodes()
-
-        {:ok, %{nodes: nodes, focus_path: focus_path}}
-      end
+      {next_nodes, focus_path} = insert_child_first(nodes_with_latest_text, path)
+      {:ok, %{nodes: next_nodes, focus_path: focus_path}}
     end
   end
 
-  def apply(nodes, {:edit_link, target, link}) do
+  def apply(nodes, {:insert_above, target, text}) do
     with {:ok, path} <- resolve_target_path(nodes, target) do
+      nodes_with_latest_text = Tree.apply_inline_text(nodes, path, text)
+      focus_path = path
+
       {:ok,
        %{
          nodes:
-           nodes
-           |> Tree.update_node(path, fn node -> Map.put(node, "link", String.trim(link || "")) end)
+           nodes_with_latest_text
+           |> insert_at_path(path, Tree.new_node())
            |> Tree.normalize_nodes(),
-         focus_path: nil
+         focus_path: focus_path
        }}
+    end
+  end
+
+  def apply(nodes, {:insert_below, target, text}) do
+    with {:ok, path} <- resolve_target_path(nodes, target) do
+      nodes_with_latest_text = Tree.apply_inline_text(nodes, path, text)
+      focus_path = Tree.sibling_path(path)
+
+      {:ok,
+       %{
+         nodes:
+           nodes_with_latest_text
+           |> Tree.insert_sibling(path, Tree.new_node())
+           |> Tree.normalize_nodes(),
+         focus_path: focus_path
+       }}
+    end
+  end
+
+  def apply(nodes, {:focus_previous_sibling, target}) do
+    with {:ok, path} <- resolve_target_path(nodes, target) do
+      {:ok, %{nodes: nodes, focus_path: Tree.previous_visual_path(nodes, path)}}
+    end
+  end
+
+  def apply(nodes, {:focus_first_child_or_next_sibling, target}) do
+    with {:ok, path} <- resolve_target_path(nodes, target) do
+      {:ok, %{nodes: nodes, focus_path: Tree.first_child_or_next_available_path(nodes, path)}}
+    end
+  end
+
+  def apply(nodes, {:item_delete_empty_backward, target, text}) do
+    with {:ok, path} <- resolve_target_path(nodes, target) do
+      delete_empty_leaf(nodes, path, text, :backward)
+    end
+  end
+
+  def apply(nodes, {:item_delete_empty_forward, target, text}) do
+    with {:ok, path} <- resolve_target_path(nodes, target) do
+      delete_empty_leaf(nodes, path, text, :forward)
+    end
+  end
+
+  def apply(nodes, {:item_delete_empty, target, text}) do
+    __MODULE__.apply(nodes, {:item_delete_empty_backward, target, text})
+  end
+
+  def apply(nodes, {:item_empty_enter, target, text}) do
+    with {:ok, path} <- resolve_target_path(nodes, target) do
+      nodes_with_latest_text = Tree.apply_inline_text(nodes, path, text)
+
+      cond do
+        length(path) > 1 and Tree.last_child_path?(nodes_with_latest_text, path) ->
+          {next_nodes, focus_path} = Tree.outdent_node(nodes_with_latest_text, path)
+          {:ok, %{nodes: next_nodes, focus_path: focus_path}}
+
+        true ->
+          focus_path = Tree.sibling_path(path)
+
+          {:ok,
+           %{
+             nodes:
+               nodes_with_latest_text
+               |> Tree.insert_sibling(path, Tree.new_node())
+               |> Tree.normalize_nodes(),
+             focus_path: focus_path
+           }}
+      end
     end
   end
 
@@ -133,11 +183,11 @@ defmodule Gakugo.Learning.Notebook.Editor do
     with {:ok, path} <- resolve_target_path(nodes, target) do
       nodes_with_latest_text = Tree.apply_inline_text(nodes, path, text)
 
-      if length(path) <= 1 do
-        {:ok, %{nodes: nodes_with_latest_text, focus_path: nil}}
-      else
+      if Tree.can_safe_outdent_path?(nodes_with_latest_text, path) do
         {next_nodes, focus_path} = Tree.outdent_node(nodes_with_latest_text, path)
         {:ok, %{nodes: next_nodes, focus_path: focus_path}}
+      else
+        {:ok, %{nodes: nodes_with_latest_text, focus_path: nil}}
       end
     end
   end
@@ -257,6 +307,77 @@ defmodule Gakugo.Learning.Notebook.Editor do
     do: {:ok, parse_path(path)}
 
   defp resolve_target_path(_nodes, _), do: :error
+
+  defp insert_child_first(nodes, path) do
+    child_path = path ++ [0]
+
+    nodes =
+      nodes
+      |> Tree.update_node(path, fn node ->
+        children = node["children"] || []
+        Map.put(node, "children", [Tree.new_node() | children])
+      end)
+      |> Tree.normalize_nodes()
+
+    {nodes, child_path}
+  end
+
+  defp delete_empty_leaf(nodes, path, text, direction) do
+    nodes_with_latest_text = Tree.apply_inline_text(nodes, path, text)
+    current = Tree.get_node(nodes_with_latest_text, path)
+
+    cond do
+      Tree.node_count(nodes_with_latest_text) <= 1 ->
+        :noop
+
+      not is_map(current) ->
+        :noop
+
+      String.trim(current["text"] || "") != "" ->
+        :noop
+
+      (current["children"] || []) != [] ->
+        :noop
+
+      true ->
+        focus_target_path =
+          case direction do
+            :forward ->
+              Tree.next_sibling_or_ancestor_next_sibling_path(nodes_with_latest_text, path)
+
+            :backward ->
+              Tree.previous_sibling_or_parent_path(path)
+          end
+
+        focus_target_id =
+          case focus_target_path && Tree.get_node(nodes_with_latest_text, focus_target_path) do
+            %{"id" => id} -> id
+            _ -> nil
+          end
+
+        nodes =
+          nodes_with_latest_text
+          |> Tree.delete_node(path)
+          |> Tree.normalize_nodes()
+
+        focus_path =
+          cond do
+            is_binary(focus_target_id) -> Tree.path_for_id(nodes, focus_target_id)
+            true -> focus_target_path
+          end
+
+        {:ok, %{nodes: nodes, focus_path: focus_path}}
+    end
+  end
+
+  defp insert_at_path(nodes, [idx], node), do: List.insert_at(nodes, idx, node)
+
+  defp insert_at_path(nodes, [idx | rest], node) do
+    List.update_at(nodes, idx, fn current ->
+      children = insert_at_path(current["children"] || [], rest, node)
+      Map.put(current, "children", children)
+    end)
+  end
 
   defp resolve_insertion_target(%{"parent_path" => parent_path, "index" => index}) do
     with {:ok, parsed_parent_path} <- parse_non_negative_path(parent_path),

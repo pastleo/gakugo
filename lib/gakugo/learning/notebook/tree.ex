@@ -5,7 +5,6 @@ defmodule Gakugo.Learning.Notebook.Tree do
       "text" => "",
       "front" => false,
       "answer" => false,
-      "link" => "",
       "children" => []
     }
   end
@@ -28,6 +27,53 @@ defmodule Gakugo.Learning.Notebook.Tree do
 
   def sibling_path(path) do
     List.replace_at(path, length(path) - 1, List.last(path) + 1)
+  end
+
+  def previous_sibling_path(path) when is_list(path) and length(path) > 0 do
+    current_idx = List.last(path)
+
+    if current_idx > 0 do
+      List.replace_at(path, length(path) - 1, current_idx - 1)
+    else
+      nil
+    end
+  end
+
+  def previous_sibling_path(_path), do: nil
+
+  def parent_path(path) when is_list(path) and length(path) > 1, do: Enum.drop(path, -1)
+  def parent_path(_path), do: nil
+
+  def first_child_path(nodes, path) when is_list(path) do
+    case get_node(nodes, path) do
+      %{"children" => [_, _ | _]} -> path ++ [0]
+      %{"children" => [_]} -> path ++ [0]
+      %{children: [_, _ | _]} -> path ++ [0]
+      %{children: [_]} -> path ++ [0]
+      _ -> nil
+    end
+  end
+
+  def first_child_path(_nodes, _path), do: nil
+
+  def next_sibling_path(nodes, path) when is_list(path) and length(path) > 0 do
+    sibling_path = sibling_path(path)
+
+    if is_nil(get_node(nodes, sibling_path)) do
+      nil
+    else
+      sibling_path
+    end
+  end
+
+  def next_sibling_path(_nodes, _path), do: nil
+
+  def first_child_or_next_sibling_path(nodes, path) do
+    first_child_path(nodes, path) || next_sibling_path(nodes, path)
+  end
+
+  def first_child_or_next_available_path(nodes, path) do
+    first_child_path(nodes, path) || next_sibling_or_ancestor_next_sibling_path(nodes, path)
   end
 
   def apply_inline_text(nodes, _indexes, nil), do: nodes
@@ -98,6 +144,56 @@ defmodule Gakugo.Learning.Notebook.Tree do
     end
   end
 
+  def next_path(nodes, current_path) do
+    paths = depth_first_paths(nodes)
+
+    case Enum.find_index(paths, fn path -> path == current_path end) do
+      nil -> nil
+      index -> Enum.at(paths, index + 1)
+    end
+  end
+
+  def previous_sibling_or_parent_path(path) when is_list(path) and length(path) > 0 do
+    previous_sibling_path(path) || parent_path(path)
+  end
+
+  def previous_sibling_or_parent_path(_path), do: nil
+
+  def deepest_last_leaf_path(nodes, path) when is_list(path) do
+    case get_node(nodes, path) do
+      %{"children" => children} when is_list(children) and children != [] ->
+        deepest_last_leaf_path(nodes, path ++ [length(children) - 1])
+
+      %{children: children} when is_list(children) and children != [] ->
+        deepest_last_leaf_path(nodes, path ++ [length(children) - 1])
+
+      _ ->
+        path
+    end
+  end
+
+  def deepest_last_leaf_path(_nodes, path), do: path
+
+  def previous_visual_path(nodes, path) when is_list(path) and length(path) > 0 do
+    case previous_sibling_path(path) do
+      nil -> parent_path(path)
+      sibling_path -> deepest_last_leaf_path(nodes, sibling_path)
+    end
+  end
+
+  def previous_visual_path(_nodes, _path), do: nil
+
+  def next_sibling_or_ancestor_next_sibling_path(nodes, path)
+      when is_list(path) and length(path) > 0 do
+    next_sibling_path(nodes, path) ||
+      path
+      |> ancestor_paths()
+      |> Enum.reverse()
+      |> Enum.find_value(fn ancestor_path -> next_sibling_path(nodes, ancestor_path) end)
+  end
+
+  def next_sibling_or_ancestor_next_sibling_path(_nodes, _path), do: nil
+
   def path_for_id(nodes, node_id) when is_binary(node_id) and node_id != "" do
     do_path_for_id(nodes, node_id, [])
   end
@@ -107,6 +203,17 @@ defmodule Gakugo.Learning.Notebook.Tree do
   def can_indent_path?(path), do: List.last(path) > 0
 
   def can_outdent_path?(path), do: length(path) > 1
+
+  def can_safe_outdent_path?(nodes, path) do
+    can_outdent_path?(path) and last_child_path?(nodes, path)
+  end
+
+  def last_child_path?(nodes, path) when is_list(path) and length(path) > 1 do
+    sibling_path = sibling_path(path)
+    is_nil(get_node(nodes, sibling_path))
+  end
+
+  def last_child_path?(_nodes, _path), do: false
 
   def extract_node(nodes, path) when is_list(path) do
     case get_node(nodes, path) do
@@ -256,7 +363,6 @@ defmodule Gakugo.Learning.Notebook.Tree do
       "text" => normalize_node_text(node),
       "front" => front,
       "answer" => normalize_node_answer(node),
-      "link" => normalize_node_link(node),
       "children" => normalize_node_children(node, in_front_branch or front)
     }
   end
@@ -280,10 +386,6 @@ defmodule Gakugo.Learning.Notebook.Tree do
   defp normalize_node_answer(%{"answer" => answer}) when is_boolean(answer), do: answer
   defp normalize_node_answer(%{answer: answer}) when is_boolean(answer), do: answer
   defp normalize_node_answer(_), do: false
-
-  defp normalize_node_link(%{"link" => link}) when is_binary(link), do: String.trim(link)
-  defp normalize_node_link(%{link: link}) when is_binary(link), do: String.trim(link)
-  defp normalize_node_link(_), do: ""
 
   defp normalize_node_children(%{"children" => children}, in_front_branch) when is_list(children),
     do: Enum.map(children, &normalize_node(&1, in_front_branch))

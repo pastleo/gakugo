@@ -84,10 +84,52 @@ defmodule Gakugo.Anki.SyncServiceTest do
       assert String.contains?(card.content, "child two")
       assert String.contains?(card.content, "outside node")
 
-      assert String.contains?(card.content, ~s(class="gakugo-front gakugo-front-tree"))
-      assert String.contains?(card.content, ~s(class="gakugo-front-tree">child one))
-      assert String.contains?(card.content, ~s(class="gakugo-front-tree">child two))
-      assert String.contains?(card.content, ~s(class="">outside node))
+      assert String.contains?(
+               card.content,
+               ~s(class="gakugo-line gakugo-front gakugo-front-tree")
+             )
+
+      assert String.contains?(card.content, ~s(class="gakugo-line gakugo-front-tree"))
+      assert String.contains?(card.content, "child one")
+      assert String.contains?(card.content, "child two")
+      assert String.contains?(card.content, ~s(class="gakugo-line"))
+      assert String.contains?(card.content, "outside node")
+    end
+
+    test "preserves notebook rich text html for Anki card content" do
+      unit = unit_fixture()
+      unit = Learning.get_unit!(unit.id)
+      page = hd(unit.pages)
+
+      {:ok, _updated_page} =
+        Learning.update_page(page, %{
+          items: [
+            %{
+              "text" => "<p><strong>front</strong> <a href=\"https://example.com\">link</a></p>",
+              "front" => true,
+              "children" => [
+                %{
+                  "text" => "<p><span style=\"color: rgb(230, 0, 0)\">answer</span></p>",
+                  "answer" => true,
+                  "children" => []
+                }
+              ]
+            }
+          ]
+        })
+
+      [card] =
+        unit.id
+        |> Learning.get_unit!()
+        |> SyncService.preview_unit_flashcards()
+
+      assert String.contains?(card.content, "<strong>front</strong>")
+      assert String.contains?(card.content, "example.com")
+      assert String.contains?(card.content, ">link</a>")
+      assert String.contains?(card.content, "color: rgb(230, 0, 0)")
+      assert String.contains?(card.content, ">answer</span>")
+      refute String.contains?(card.content, "&lt;strong&gt;")
+      refute String.contains?(card.content, "&lt;a href")
     end
   end
 end

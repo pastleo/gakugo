@@ -104,6 +104,39 @@ defmodule Gakugo.Learning.Notebook.TreeTest do
     assert Tree.previous_path(nodes, [1]) == [0, 0]
   end
 
+  test "sibling and child focus helpers return structural neighbors" do
+    nodes = [
+      %{
+        "id" => "root",
+        "text" => "A",
+        "front" => false,
+        "answer" => false,
+        "link" => "",
+        "children" => [make_node("B", "child")]
+      },
+      make_node("C", "sibling")
+    ]
+
+    assert Tree.previous_sibling_path([1]) == [0]
+    assert Tree.previous_sibling_path([0]) == nil
+    assert Tree.first_child_path(nodes, [0]) == [0, 0]
+    assert Tree.next_sibling_path(nodes, [0, 0]) == nil
+    assert Tree.next_sibling_path(nodes, [0]) == [1]
+    assert Tree.first_child_or_next_sibling_path(nodes, [0]) == [0, 0]
+    assert Tree.first_child_or_next_sibling_path(nodes, [0, 0]) == nil
+    assert Tree.first_child_or_next_sibling_path(nodes, [1]) == nil
+    assert Tree.previous_sibling_or_parent_path([0, 0]) == [0]
+    assert Tree.previous_sibling_or_parent_path([1]) == [0]
+    assert Tree.previous_visual_path(nodes, [0, 0]) == [0]
+    assert Tree.previous_visual_path(nodes, [1]) == [0, 0]
+    assert Tree.next_sibling_or_ancestor_next_sibling_path(nodes, [0, 0]) == [1]
+    assert Tree.next_sibling_or_ancestor_next_sibling_path(nodes, [0]) == [1]
+    assert Tree.first_child_or_next_available_path(nodes, [0]) == [0, 0]
+    assert Tree.first_child_or_next_available_path(nodes, [0, 0]) == [1]
+    assert Tree.last_child_path?(nodes, [0, 0])
+    refute Tree.last_child_path?(nodes, [0])
+  end
+
   test "path_under_front? detects ancestors with front" do
     nodes = [
       %{

@@ -26,6 +26,23 @@ defmodule Gakugo.Anki.SyncService do
   .gakugo-notebook li {
     margin: 0.1rem 0;
   }
+  .gakugo-line p {
+    margin: 0;
+  }
+  .gakugo-line p:empty {
+    display: none;
+  }
+  .gakugo-line ul,
+  .gakugo-line ol {
+    margin: 0.25rem 0 0;
+    padding-left: 1.25rem;
+  }
+  .gakugo-line img {
+    display: block;
+    max-width: min(100%, 20rem);
+    margin: 0.35rem 0;
+    border-radius: 0.5rem;
+  }
   .gakugo-front {
     background: rgba(250, 204, 21, 0.35);
     border-radius: 0.25rem;
@@ -403,11 +420,7 @@ defmodule Gakugo.Anki.SyncService do
         if MapSet.member?(occluded_paths, path) do
           render_occluded_text(text, MapSet.member?(current_answer_paths, path))
         else
-          if node["link"] in [nil, ""] do
-            to_html(text)
-          else
-            render_link(node["link"], text)
-          end
+          render_rich_text(text)
         end
 
       line_classes =
@@ -436,7 +449,7 @@ defmodule Gakugo.Anki.SyncService do
   end
 
   defp render_page_content(body_html, page_title) do
-    assigns = %{body_html: body_html, page_title: to_html(page_title)}
+    assigns = %{body_html: body_html, page_title: render_plain_text(page_title)}
 
     ~H"""
     <div><strong>{Phoenix.HTML.raw(@page_title)}</strong></div>
@@ -446,12 +459,16 @@ defmodule Gakugo.Anki.SyncService do
   end
 
   defp render_occluded_text(text, current_answer?) do
-    width_ch = max(String.length(text), 4)
+    width_ch = max(visible_text_length(text), 4)
 
     occlusion_class =
       if(current_answer?, do: "gakugo-occlusion is-current", else: "gakugo-occlusion is-other")
 
-    assigns = %{answer_html: to_html(text), width_ch: width_ch, occlusion_class: occlusion_class}
+    assigns = %{
+      answer_html: render_rich_text(text),
+      width_ch: width_ch,
+      occlusion_class: occlusion_class
+    }
 
     ~H"""
     <span class={@occlusion_class}>
@@ -459,15 +476,6 @@ defmodule Gakugo.Anki.SyncService do
       </span>
       <span class="gakugo-occlusion-answer">{Phoenix.HTML.raw(@answer_html)}</span>
     </span>
-    """
-    |> heex_to_string()
-  end
-
-  defp render_link(link, text) do
-    assigns = %{href: to_html(link), text_html: to_html(text)}
-
-    ~H"""
-    <a href={@href} target="_blank" rel="noreferrer">{Phoenix.HTML.raw(@text_html)}</a>
     """
     |> heex_to_string()
   end
@@ -486,7 +494,10 @@ defmodule Gakugo.Anki.SyncService do
 
     ~H"""
     <li>
-      <span class={@line_class}>{Phoenix.HTML.raw(@text_html)}</span>{Phoenix.HTML.raw(@children_html)}
+      <div class={Enum.join(["gakugo-line", @line_class], " ") |> String.trim()}>
+        {Phoenix.HTML.raw(@text_html)}
+      </div>
+      {Phoenix.HTML.raw(@children_html)}
     </li>
     """
     |> heex_to_string()
@@ -498,14 +509,38 @@ defmodule Gakugo.Anki.SyncService do
     |> IO.iodata_to_binary()
   end
 
-  defp to_html(text) when is_binary(text) do
+  defp render_rich_text(text) when is_binary(text) do
+    if html_fragment?(text) do
+      text
+    else
+      render_plain_text(text)
+    end
+  end
+
+  defp render_rich_text(nil), do: ""
+
+  defp render_plain_text(text) when is_binary(text) do
     text
     |> Phoenix.HTML.html_escape()
     |> Phoenix.HTML.safe_to_string()
     |> String.replace("\n", "<br>")
   end
 
-  defp to_html(nil), do: ""
+  defp render_plain_text(nil), do: ""
+
+  defp html_fragment?(text) when is_binary(text) do
+    Regex.match?(~r/<\/?[a-z][^>]*>/i, text)
+  end
+
+  defp visible_text_length(text) when is_binary(text) do
+    text
+    |> render_rich_text()
+    |> String.replace(~r/<br\s*\/?\s*>/i, "\n")
+    |> String.replace(~r/<[^>]*>/, "")
+    |> String.length()
+  end
+
+  defp visible_text_length(nil), do: 0
 
   defp path_in_front_tree?(path, front_path)
        when is_list(path) and is_list(front_path) and length(path) >= length(front_path) do

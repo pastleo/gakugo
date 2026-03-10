@@ -2,6 +2,7 @@
    https://tailwindcss.com/docs/configuration */
 
 @import "tailwindcss" source(none);
+@import "../node_modules/quill/dist/quill.snow.css";
 @source "../css";
 @source "../js";
 @source "../../lib/gakugo_web";
@@ -136,4 +137,457 @@
 
 .notebook-line-input {
   font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+}
+
+.notebook-editor-toolbar {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.45rem);
+  z-index: 30;
+  display: flex;
+  max-width: min(100%, 26rem);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: 1rem;
+  background: var(--color-base-100);
+}
+
+.notebook-editor-toolbar.hidden {
+  display: none;
+}
+
+.notebook-editor-toolbar .ql-formats {
+  margin-right: 0;
+}
+
+.notebook-editor-toolbar .ql-picker {
+  color: var(--color-base-content);
+}
+
+.notebook-editor-toolbar button,
+.notebook-editor-toolbar .ql-picker-label {
+  border-radius: 0.7rem;
+  transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease;
+}
+
+.notebook-editor-toolbar button:hover,
+.notebook-editor-toolbar button:focus-visible,
+.notebook-editor-toolbar .ql-picker-label:hover,
+.notebook-editor-toolbar .ql-picker-label:focus-visible {
+  background-color: color-mix(in oklab, var(--color-base-200) 88%, transparent);
+}
+
+.notebook-editor-toolbar button:focus-visible,
+.notebook-editor-toolbar .ql-picker-label:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--color-primary) 55%, transparent);
+  outline-offset: 1px;
+}
+
+.notebook-editor-toolbar .ql-stroke {
+  stroke: currentColor;
+}
+
+.notebook-editor-toolbar .ql-fill {
+  fill: currentColor;
+}
+
+.notebook-editor-toolbar .ql-picker-options {
+  border: 1px solid color-mix(in oklab, var(--color-base-300) 85%, transparent);
+  border-radius: 0.9rem;
+  background: var(--color-base-100);
+  box-shadow: 0 12px 28px color-mix(in oklab, var(--color-base-content) 12%, transparent);
+}
+
+.notebook-editor-surface {
+  min-height: 2.2rem;
+}
+
+.notebook-editor-surface .ql-editor {
+  min-height: 2.2rem;
+  padding: 0.2rem 0.15rem 0.3rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-base-content);
+  font-size: 1rem;
+  line-height: 1.9rem;
+}
+
+.notebook-editor-surface .ql-editor.ql-blank::before {
+  left: 0.15rem;
+  font-style: normal;
+  color: color-mix(in oklab, var(--color-base-content) 40%, transparent);
+}
+
+.notebook-editor-surface .ql-tooltip {
+  z-index: 35;
+  min-width: 14rem;
+  max-width: min(22rem, calc(100vw - 1.5rem));
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: 1rem;
+  background: var(--color-base-100);
+  color: var(--color-base-content);
+  box-shadow: none;
+  transform: translateY(0);
+}
+
+.notebook-editor-surface .ql-tooltip.ql-hidden {
+  display: none;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.notebook-editor-surface .ql-tooltip::before {
+  content: none;
+  display: none;
+}
+
+
+.notebook-editor-surface .ql-tooltip:not(.ql-hidden) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.notebook-editor-surface .ql-tooltip.ql-editing:not(.ql-hidden) {
+  display: flex;
+}
+
+.notebook-editor-surface .ql-tooltip > .ql-action,
+.notebook-editor-surface .ql-tooltip > .ql-remove,
+.notebook-editor-surface .ql-tooltip > .ql-cancel {
+  order: 1;
+}
+
+.notebook-editor-surface .ql-tooltip > .ql-preview,
+.notebook-editor-surface .ql-tooltip > .ql-link-field,
+.notebook-editor-surface .ql-tooltip > input[type="text"],
+.notebook-editor-surface .ql-tooltip > .ql-image-form {
+  order: 2;
+  width: 100%;
+}
+
+.notebook-editor-surface .ql-tooltip > .ql-image-form {
+  order: 3;
+}
+
+.notebook-editor-surface .ql-tooltip input[type="text"] {
+  width: 100%;
+  min-width: 0;
+  height: 2.25rem;
+  margin: 0;
+  padding: 0 0.75rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: 0.8rem;
+  background: var(--color-base-100);
+  color: var(--color-base-content);
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.notebook-editor-surface .ql-tooltip input[type="text"]:focus {
+  border-color: color-mix(in oklab, var(--color-primary) 55%, var(--color-base-300));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 18%, transparent);
+}
+
+.notebook-editor-surface .ql-tooltip[data-mode="image"] .ql-preview,
+.notebook-editor-surface .ql-tooltip[data-mode="image"] .ql-remove,
+.notebook-editor-surface .ql-tooltip[data-mode="image"] > input[type="text"] {
+  display: none;
+}
+
+.notebook-editor-surface .ql-tooltip .ql-link-field {
+  display: none;
+  gap: 0.3rem;
+}
+
+.notebook-editor-surface .ql-tooltip.ql-editing[data-mode="link"] .ql-link-field:not(.ql-hidden) {
+  display: grid;
+}
+
+.notebook-editor-surface .ql-tooltip .ql-link-field > span {
+  font-size: 0.72rem;
+  color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
+}
+
+.notebook-editor-surface .ql-tooltip.ql-editing[data-mode="link"] > .ql-preview {
+  display: none;
+}
+
+.notebook-editor-surface .ql-tooltip:not(.ql-editing) > .ql-cancel,
+.notebook-editor-surface .ql-tooltip:not(.ql-editing) > input[type="text"],
+.notebook-editor-surface .ql-tooltip:not(.ql-editing) > .ql-link-field,
+.notebook-editor-surface .ql-tooltip:not(.ql-editing) > .ql-image-form {
+  display: none;
+}
+
+.notebook-editor-surface .ql-tooltip.ql-editing > .ql-remove {
+  display: none;
+}
+
+.notebook-editor-surface .ql-tooltip .ql-image-form {
+  display: none;
+  width: 100%;
+}
+
+.notebook-editor-surface .ql-tooltip[data-mode="image"] .ql-image-form {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.notebook-editor-surface .ql-tooltip .ql-image-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.notebook-editor-surface .ql-tooltip .ql-image-position-field {
+  grid-column: 1 / -1;
+}
+
+.notebook-editor-surface .ql-tooltip .ql-image-field {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.notebook-editor-surface .ql-tooltip .ql-image-field > span,
+.notebook-editor-surface .ql-tooltip .ql-image-help {
+  font-size: 0.72rem;
+  color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
+}
+
+.notebook-editor-surface .ql-tooltip .ql-image-help {
+  margin: 0;
+}
+
+.notebook-editor-surface .ql-tooltip .ql-image-field input,
+.notebook-editor-surface .ql-tooltip .ql-image-field select {
+  width: 100%;
+  min-width: 0;
+  height: 2.25rem;
+  margin: 0;
+  padding: 0 0.75rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: 0.8rem;
+  background: var(--color-base-100);
+  color: var(--color-base-content);
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.notebook-editor-surface .ql-tooltip .ql-image-field input:focus,
+.notebook-editor-surface .ql-tooltip .ql-image-field select:focus {
+  border-color: color-mix(in oklab, var(--color-primary) 55%, var(--color-base-300));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 18%, transparent);
+}
+
+.notebook-editor-surface .ql-tooltip a {
+  color: var(--color-base-content);
+}
+
+.notebook-editor-surface .ql-tooltip a.ql-preview {
+  display: block;
+  max-width: 100%;
+  color: var(--color-primary);
+  font-size: 0.8rem;
+}
+
+.notebook-editor-surface .ql-tooltip a.ql-preview::before {
+  content: none;
+}
+
+.notebook-editor-surface .ql-tooltip a.ql-action,
+.notebook-editor-surface .ql-tooltip a.ql-remove,
+.notebook-editor-surface .ql-tooltip .ql-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: 999px;
+  padding: 0 0.8rem;
+  background: var(--color-base-100);
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.notebook-editor-surface .ql-tooltip > .ql-action,
+.notebook-editor-surface .ql-tooltip > .ql-remove,
+.notebook-editor-surface .ql-tooltip > .ql-cancel {
+  margin-right: 0.45rem;
+}
+
+.notebook-editor-surface .ql-tooltip > .ql-cancel:last-child,
+.notebook-editor-surface .ql-tooltip > .ql-remove:last-child {
+  margin-right: 0;
+}
+
+.notebook-editor-surface .ql-tooltip a.ql-action:hover,
+.notebook-editor-surface .ql-tooltip a.ql-remove:hover,
+.notebook-editor-surface .ql-tooltip .ql-cancel:hover {
+  background: var(--color-base-200);
+}
+
+.notebook-editor-surface .ql-tooltip a.ql-action::after {
+  margin-left: 0;
+  padding-right: 0;
+  border-right: 0;
+}
+
+.notebook-editor-surface .ql-tooltip a.ql-remove::before {
+  margin-left: 0;
+}
+
+.notebook-editor-surface .ql-tooltip.ql-editing a.ql-action {
+  border-color: color-mix(in oklab, var(--color-primary) 40%, var(--color-base-300));
+  background: color-mix(in oklab, var(--color-primary) 10%, var(--color-base-100));
+  color: var(--color-primary);
+}
+
+.notebook-editor-surface .ql-tooltip .ql-cancel {
+  cursor: pointer;
+  color: color-mix(in oklab, var(--color-base-content) 78%, transparent);
+}
+
+.notebook-editor-surface .ql-editor p,
+.notebook-editor-surface .ql-editor ol,
+.notebook-editor-surface .ql-editor ul,
+.notebook-editor-surface .ql-editor pre,
+.notebook-editor-surface .ql-editor blockquote,
+.notebook-editor-surface .ql-editor h1,
+.notebook-editor-surface .ql-editor h2,
+.notebook-editor-surface .ql-editor h3,
+.notebook-editor-surface .ql-editor h4,
+.notebook-editor-surface .ql-editor h5,
+.notebook-editor-surface .ql-editor h6 {
+  margin-bottom: 0;
+}
+
+.notebook-editor-surface .ql-editor img {
+  display: block;
+  max-width: min(100%, 20rem);
+  margin: 0.35rem 0;
+  border: 1px solid var(--color-base-300);
+  border-radius: 0.9rem;
+  cursor: pointer;
+}
+
+.notebook-editor-surface .ql-editor img.notebook-image-center {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.notebook-editor-surface .ql-editor img.notebook-image-right {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.notebook-image-options-bubble {
+  position: absolute;
+  z-index: 36;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 9rem;
+  padding: 0.7rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: 1rem;
+  background: var(--color-base-100);
+}
+
+.notebook-image-options-bubble.hidden {
+  display: none;
+}
+
+.notebook-image-options-row {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.notebook-image-option-show,
+.notebook-image-option-edit,
+.notebook-image-lightbox-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: 999px;
+  padding: 0 0.85rem;
+  background: var(--color-base-100);
+  color: var(--color-base-content);
+  font-size: 0.76rem;
+  font-weight: 600;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.notebook-image-option-show:hover,
+.notebook-image-option-edit:hover,
+.notebook-image-lightbox-close:hover {
+  background: var(--color-base-200);
+}
+
+.notebook-image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.notebook-image-lightbox.hidden {
+  display: none;
+}
+
+.notebook-image-lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in oklab, black 72%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.notebook-image-lightbox-frame {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  max-width: min(92vw, 72rem);
+  max-height: 88vh;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in oklab, var(--color-base-300) 70%, transparent);
+  border-radius: 1.5rem;
+  background: color-mix(in oklab, var(--color-base-100) 92%, black 8%);
+}
+
+.notebook-image-lightbox-image {
+  display: block;
+  max-width: min(88vw, 68rem);
+  max-height: calc(88vh - 2rem);
+  border-radius: 1rem;
+}
+
+.notebook-image-lightbox-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2;
+}
+
+.notebook-line-input .ql-container.ql-snow {
+  border: none;
+}
+.notebook-line-input .ql-toolbar.ql-snow {
+  border-color: var(--color-base-300);
+}
+
+.notebook-line-input:focus-within {
+  box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--color-primary) 48%, transparent);
 }

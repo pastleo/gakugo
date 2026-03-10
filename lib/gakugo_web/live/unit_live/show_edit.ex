@@ -363,6 +363,7 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
                   in_front_branch={false}
                   actor_id={@actor_id}
                   item_locks={@item_locks}
+                  all_nodes={page.nodes}
                 />
               </ul>
             </article>
@@ -761,6 +762,7 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
   attr(:in_front_branch, :boolean, required: true)
   attr(:actor_id, :string, required: true)
   attr(:item_locks, :map, required: true)
+  attr(:all_nodes, :list, required: true)
 
   defp node_editor(assigns) do
     lock_owner_actor_id =
@@ -778,6 +780,7 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
     <li
       id={"notebook-node-#{@page_id}-#{@node["id"]}"}
       data-dnd-item
+      data-notebook-path={path_to_string(@path)}
       data-page-id={@page_id}
       data-path={path_to_string(@path)}
       data-node-id={@node["id"]}
@@ -786,7 +789,7 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
         <div class="flex items-start gap-2">
           <details
             :if={!@locked_by_other}
-            id={"item-options-#{@page_id}-#{path_to_dom_id(@path)}"}
+            id={"item-options-#{@page_id}-#{@node["id"]}"}
             phx-hook="ItemOptionsBubble"
             data-path={path_to_string(@path)}
             data-page-id={@page_id}
@@ -850,7 +853,7 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
                   phx-value-node_id={@node["id"]}
                   phx-value-page_id={@page_id}
                   class="inline-flex items-center justify-center gap-1 rounded-md border border-base-300 bg-base-200/35 px-2 py-1 text-xs font-semibold text-base-content transition hover:bg-base-200 disabled:cursor-not-allowed disabled:opacity-40"
-                  disabled={!Tree.can_outdent_path?(@path)}
+                  disabled={!Tree.can_safe_outdent_path?(@all_nodes, @path)}
                   title="Unindent"
                 >
                   <.icon name="hero-chevron-left" class="size-3.5" /> Unindent
@@ -860,7 +863,7 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
               <%= if !answer_context do %>
                 <%= if hide_front_checkbox do %>
                   <p
-                    id={"flashcard-disabled-hint-#{@page_id}-#{path_to_dom_id(@path)}"}
+                    id={"flashcard-disabled-hint-#{@page_id}-#{@node["id"]}"}
                     class="mb-2 text-[11px] text-base-content/60"
                   >
                     Has flashcard children.
@@ -897,7 +900,7 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
               <% end %>
 
               <button
-                id={"generate-from-item-#{@page_id}-#{path_to_dom_id(@path)}"}
+                id={"generate-from-item-#{@page_id}-#{@node["id"]}"}
                 type="button"
                 phx-click="open_generate_from_item"
                 phx-value-page_id={@page_id}
@@ -906,29 +909,12 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
               >
                 <.icon name="hero-sparkles" class="size-3.5" /> Generate
               </button>
-
-              <form phx-change="edit_node_link" class="space-y-1">
-                <input type="hidden" name="path" value={path_to_string(@path)} />
-                <input type="hidden" name="node_id" value={@node["id"]} />
-                <input type="hidden" name="page_id" value={@page_id} />
-                <label class="block text-[11px] font-semibold uppercase tracking-wide text-base-content/55">
-                  Link
-                </label>
-                <input
-                  type="url"
-                  name="link"
-                  value={@node["link"]}
-                  placeholder="https://..."
-                  phx-debounce="250"
-                  class="w-full rounded-lg border border-base-300 bg-base-100 px-2 py-1.5 text-xs text-base-content outline-hidden transition focus:border-primary"
-                />
-              </form>
             </div>
           </details>
 
           <div
             :if={@locked_by_other}
-            id={"item-locked-badge-#{@page_id}-#{path_to_dom_id(@path)}"}
+            id={"item-locked-badge-#{@page_id}-#{@node["id"]}"}
             class="mt-1 inline-flex size-6 items-center justify-center rounded-full border border-info/40 bg-info/12 text-info"
             title="Another collaborator is editing"
           >
@@ -936,38 +922,22 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
           </div>
 
           <div class="flex min-w-56 grow items-start gap-2">
-            <form phx-change="edit_node_text" class="grow">
-              <input type="hidden" name="path" value={path_to_string(@path)} />
-              <input type="hidden" name="node_id" value={@node["id"]} />
-              <input type="hidden" name="page_id" value={@page_id} />
-              <textarea
-                id={"item-input-#{@page_id}-#{path_to_dom_id(@path)}"}
-                name="text"
-                rows="1"
-                data-path={path_to_string(@path)}
-                data-node-id={@node["id"]}
-                data-page-id={@page_id}
-                disabled={@locked_by_other}
-                phx-hook="NotebookItem"
-                placeholder="Write item..."
-                class={[
-                  "field-sizing-content min-h-8 w-full resize-none overflow-hidden border-0 border-b border-base-content/30 bg-transparent px-1.5 py-1 text-sm leading-6 text-base-content outline-hidden transition focus:border-primary/45",
-                  external_link?(@node["link"]) &&
-                    "underline decoration-base-content/55 underline-offset-2"
-                ]}
-              >{@node["text"]}</textarea>
-            </form>
-
-            <a
-              :if={external_link?(@node["link"])}
-              href={@node["link"]}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="mt-1 inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-base-300 text-base-content/70 transition hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
-              title="Open external link"
+            <div
+              id={"item-input-#{@page_id}-#{@node["id"]}"}
+              data-path={path_to_string(@path)}
+              data-node-id={@node["id"]}
+              data-page-id={@page_id}
+              data-text={@node["text"]}
+              data-disabled={to_string(@locked_by_other)}
+              data-placeholder="Write item..."
+              phx-hook="NotebookItemEditor"
+              phx-update="ignore"
+              class={[
+                "notebook-line-input relative w-full border-0 border-b border-base-300/80 bg-transparent px-1 py-0.5 transition focus-within:border-primary/70",
+                @locked_by_other && "pointer-events-none opacity-55"
+              ]}
             >
-              <.icon name="hero-arrow-top-right-on-square" class="size-4" />
-            </a>
+            </div>
           </div>
         </div>
       </div>
@@ -982,6 +952,7 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
           in_front_branch={@in_front_branch or @node["front"]}
           actor_id={@actor_id}
           item_locks={@item_locks}
+          all_nodes={@all_nodes}
         />
       </ul>
     </li>
@@ -1348,22 +1319,21 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
 
   def handle_event(
         "edit_node_text",
-        %{"text" => text, "page_id" => page_id} = params,
+        %{"page_id" => page_id} = params,
         socket
       ) do
     with_page_state(socket, page_id, fn socket, page, state ->
-      apply_local_editor_command(socket, page, state, {:edit_text, editor_target(params), text})
+      apply_local_editor_command(
+        socket,
+        page,
+        state,
+        {:edit_text, editor_target(params), normalize_item_rich_text(params)}
+      )
     end)
   end
 
-  def handle_event(
-        "edit_node_link",
-        %{"link" => link, "page_id" => page_id} = params,
-        socket
-      ) do
-    with_page_state(socket, page_id, fn socket, page, state ->
-      apply_local_editor_command(socket, page, state, {:edit_link, editor_target(params), link})
-    end)
+  def handle_event("edit_node_text", params, socket) do
+    handle_event("edit_node_text", Map.put(params, "page_id", default_page_id(socket)), socket)
   end
 
   def handle_event(
@@ -1381,17 +1351,45 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
       apply_local_editor_command(socket, page, state, {
         :item_enter,
         editor_target(params),
-        params["text"]
+        normalize_item_plain_text(params)
+      })
+    end)
+  end
+
+  def handle_event("item_delete_empty_backward", %{"page_id" => page_id} = params, socket) do
+    with_page_state(socket, page_id, fn socket, page, state ->
+      apply_local_editor_command(socket, page, state, {
+        :item_delete_empty_backward,
+        editor_target(params),
+        normalize_item_plain_text(params)
+      })
+    end)
+  end
+
+  def handle_event("item_delete_empty_forward", %{"page_id" => page_id} = params, socket) do
+    with_page_state(socket, page_id, fn socket, page, state ->
+      apply_local_editor_command(socket, page, state, {
+        :item_delete_empty_forward,
+        editor_target(params),
+        normalize_item_plain_text(params)
       })
     end)
   end
 
   def handle_event("item_delete_empty", %{"page_id" => page_id} = params, socket) do
+    handle_event(
+      "item_delete_empty_backward",
+      %{"page_id" => page_id} |> Map.merge(params),
+      socket
+    )
+  end
+
+  def handle_event("item_empty_enter", %{"page_id" => page_id} = params, socket) do
     with_page_state(socket, page_id, fn socket, page, state ->
       apply_local_editor_command(socket, page, state, {
-        :item_delete_empty,
+        :item_empty_enter,
         editor_target(params),
-        params["text"]
+        normalize_item_plain_text(params)
       })
     end)
   end
@@ -1400,8 +1398,84 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
     handle_event("item_enter", Map.put(params, "page_id", default_page_id(socket)), socket)
   end
 
+  def handle_event("item_delete_empty_backward", params, socket) do
+    handle_event(
+      "item_delete_empty_backward",
+      Map.put(params, "page_id", default_page_id(socket)),
+      socket
+    )
+  end
+
+  def handle_event("item_delete_empty_forward", params, socket) do
+    handle_event(
+      "item_delete_empty_forward",
+      Map.put(params, "page_id", default_page_id(socket)),
+      socket
+    )
+  end
+
   def handle_event("item_delete_empty", params, socket) do
-    handle_event("item_delete_empty", Map.put(params, "page_id", default_page_id(socket)), socket)
+    handle_event(
+      "item_delete_empty_backward",
+      Map.put(params, "page_id", default_page_id(socket)),
+      socket
+    )
+  end
+
+  def handle_event("item_empty_enter", params, socket) do
+    handle_event("item_empty_enter", Map.put(params, "page_id", default_page_id(socket)), socket)
+  end
+
+  def handle_event("item_insert_child_first", %{"page_id" => page_id} = params, socket) do
+    with_page_state(socket, page_id, fn socket, page, state ->
+      apply_local_editor_command(socket, page, state, {
+        :insert_child_first,
+        editor_target(params),
+        normalize_item_plain_text(params)
+      })
+    end)
+  end
+
+  def handle_event("item_insert_above", %{"page_id" => page_id} = params, socket) do
+    with_page_state(socket, page_id, fn socket, page, state ->
+      apply_local_editor_command(socket, page, state, {
+        :insert_above,
+        editor_target(params),
+        normalize_item_plain_text(params)
+      })
+    end)
+  end
+
+  def handle_event("item_insert_below", %{"page_id" => page_id} = params, socket) do
+    with_page_state(socket, page_id, fn socket, page, state ->
+      apply_local_editor_command(socket, page, state, {
+        :insert_below,
+        editor_target(params),
+        normalize_item_plain_text(params)
+      })
+    end)
+  end
+
+  def handle_event("item_focus_up", %{"page_id" => page_id} = params, socket) do
+    with_page_state(socket, page_id, fn socket, page, state ->
+      apply_local_editor_command(
+        socket,
+        page,
+        state,
+        {:focus_previous_sibling, editor_target(params)}
+      )
+    end)
+  end
+
+  def handle_event("item_focus_down", %{"page_id" => page_id} = params, socket) do
+    with_page_state(socket, page_id, fn socket, page, state ->
+      apply_local_editor_command(
+        socket,
+        page,
+        state,
+        {:focus_first_child_or_next_sibling, editor_target(params)}
+      )
+    end)
   end
 
   def handle_event("item_indent", %{"page_id" => page_id} = params, socket) do
@@ -1409,9 +1483,33 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
       apply_local_editor_command(socket, page, state, {
         :item_indent,
         editor_target(params),
-        params["text"]
+        normalize_item_plain_text(params)
       })
     end)
+  end
+
+  def handle_event("item_insert_child_first", params, socket) do
+    handle_event(
+      "item_insert_child_first",
+      Map.put(params, "page_id", default_page_id(socket)),
+      socket
+    )
+  end
+
+  def handle_event("item_insert_above", params, socket) do
+    handle_event("item_insert_above", Map.put(params, "page_id", default_page_id(socket)), socket)
+  end
+
+  def handle_event("item_insert_below", params, socket) do
+    handle_event("item_insert_below", Map.put(params, "page_id", default_page_id(socket)), socket)
+  end
+
+  def handle_event("item_focus_up", params, socket) do
+    handle_event("item_focus_up", Map.put(params, "page_id", default_page_id(socket)), socket)
+  end
+
+  def handle_event("item_focus_down", params, socket) do
+    handle_event("item_focus_down", Map.put(params, "page_id", default_page_id(socket)), socket)
   end
 
   def handle_event("item_indent", params, socket) do
@@ -1423,7 +1521,7 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
       apply_local_editor_command(socket, page, state, {
         :item_outdent,
         editor_target(params),
-        params["text"]
+        normalize_item_plain_text(params)
       })
     end)
   end
@@ -2035,6 +2133,175 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
 
   defp normalize_path(_path), do: []
 
+  defp normalize_item_rich_text(params) when is_map(params) do
+    params
+    |> Map.get("text")
+    |> case do
+      text when is_binary(text) -> sanitize_item_html(text)
+      _ -> ""
+    end
+  end
+
+  defp normalize_item_plain_text(params) when is_map(params) do
+    cond do
+      is_binary(Map.get(params, "plain_text")) ->
+        Map.get(params, "plain_text")
+
+      is_binary(Map.get(params, "text")) ->
+        params |> normalize_item_rich_text() |> strip_html_tags()
+
+      true ->
+        nil
+    end
+  end
+
+  defp sanitize_item_html(text) when is_binary(text) do
+    text
+    |> String.trim()
+    |> String.replace(~r/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/i, "")
+    |> String.replace(~r/<!--([\s\S]*?)-->/, "")
+    |> String.replace(~r/\son[a-z0-9_-]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/i, "")
+    |> sanitize_inline_styles()
+    |> sanitize_anchor_hrefs()
+    |> sanitize_image_tags()
+    |> String.replace(
+      ~r/<(?!\/?(?:p|br|strong|em|u|s|code|pre|blockquote|ul|ol|li|span|a|img)\b)[^>]*>/i,
+      ""
+    )
+  end
+
+  defp sanitize_inline_styles(text) when is_binary(text) do
+    Regex.replace(
+      ~r/\sstyle\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/i,
+      text,
+      fn _full, _quoted, double_quoted, single_quoted, unquoted ->
+        style_value =
+          Enum.find([double_quoted, single_quoted, unquoted], &(&1 not in [nil, ""])) || ""
+
+        case sanitize_style_declarations(style_value) do
+          "" -> ""
+          sanitized -> ~s( style="#{sanitized}")
+        end
+      end
+    )
+  end
+
+  defp sanitize_style_declarations(style_value) when is_binary(style_value) do
+    style_value
+    |> String.split(";", trim: true)
+    |> Enum.reduce([], fn declaration, acc ->
+      case String.split(declaration, ":", parts: 2) do
+        [property, value] ->
+          property = property |> String.trim() |> String.downcase()
+          value = String.trim(value)
+
+          if property in ["color", "background-color"] and safe_css_color?(value) do
+            acc ++ ["#{property}: #{value}"]
+          else
+            acc
+          end
+
+        _ ->
+          acc
+      end
+    end)
+    |> Enum.join("; ")
+  end
+
+  defp safe_css_color?(value) when is_binary(value) do
+    Regex.match?(~r/\A(?:#[0-9a-f]{3,8}|(?:rgb|hsl)a?\([0-9\s,.%+-]+\)|[a-z][a-z-]*)\z/i, value)
+  end
+
+  defp sanitize_anchor_hrefs(text) when is_binary(text) do
+    text
+    |> String.replace(~r/\shref\s*=\s*(['"])\s*(?!https?:|mailto:|\/|#)[^'"]*\1/i, "")
+    |> String.replace(~r/\shref\s*=\s*(?!https?:|mailto:|\/|#)[^"'\s>]+/i, "")
+  end
+
+  defp sanitize_image_tags(text) when is_binary(text) do
+    Regex.replace(~r/<img\b([^>]*)>/i, text, fn _full, attrs ->
+      src = attrs |> extract_html_attribute("src") |> sanitize_image_src_value()
+      width = attrs |> extract_html_attribute("width") |> sanitize_image_dimension()
+      height = attrs |> extract_html_attribute("height") |> sanitize_image_dimension()
+      class_name = attrs |> extract_html_attribute("class") |> sanitize_image_class_name()
+
+      [
+        src && ~s(src="#{src}"),
+        width && ~s(width="#{width}"),
+        height && ~s(height="#{height}"),
+        class_name && ~s(class="#{class_name}")
+      ]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join(" ")
+      |> case do
+        "" -> "<img>"
+        sanitized_attrs -> "<img #{sanitized_attrs}>"
+      end
+    end)
+  end
+
+  defp safe_image_src?(src) when is_binary(src) do
+    Regex.match?(
+      ~r/\A(?:https?:\/\/|\/)[^\s]+\z/i,
+      String.trim(src)
+    )
+  end
+
+  defp sanitize_image_src_value(nil), do: nil
+
+  defp sanitize_image_src_value(src) when is_binary(src) do
+    if safe_image_src?(src), do: String.trim(src), else: nil
+  end
+
+  defp sanitize_image_dimension(nil), do: nil
+
+  defp sanitize_image_dimension(value) when is_binary(value) do
+    trimmed = String.trim(value)
+
+    if Regex.match?(~r/\A\d{1,4}\z/, trimmed), do: trimmed, else: nil
+  end
+
+  defp sanitize_image_class_name(nil), do: nil
+
+  defp sanitize_image_class_name(value) when is_binary(value) do
+    value
+    |> String.split(~r/\s+/, trim: true)
+    |> Enum.filter(
+      &(&1 in ["notebook-image-left", "notebook-image-center", "notebook-image-right"])
+    )
+    |> case do
+      [] -> nil
+      classes -> Enum.join(classes, " ")
+    end
+  end
+
+  defp extract_html_attribute(attrs, name) when is_binary(attrs) and is_binary(name) do
+    escaped_name = Regex.escape(name)
+
+    with nil <-
+           Regex.run(Regex.compile!("\\b#{escaped_name}\\s*=\\s*\"([^\"]*)\"", "i"), attrs,
+             capture: :all_but_first
+           ),
+         nil <-
+           Regex.run(Regex.compile!("\\b#{escaped_name}\\s*=\\s*'([^']*)'", "i"), attrs,
+             capture: :all_but_first
+           ),
+         nil <-
+           Regex.run(Regex.compile!("\\b#{escaped_name}\\s*=\\s*([^\\s>]+)", "i"), attrs,
+             capture: :all_but_first
+           ) do
+      nil
+    else
+      [value] -> value
+    end
+  end
+
+  defp strip_html_tags(text) when is_binary(text) do
+    text
+    |> String.replace(~r/<[^>]*>/, "")
+    |> String.trim()
+  end
+
   defp editor_target(%{"node_id" => node_id, "path" => path}) do
     %{"node_id" => node_id, "path" => path}
   end
@@ -2437,8 +2704,6 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
     lock_owner_actor_id = item_lock_owner(assigns.item_locks, page_id, @page_title_lock_path)
     is_binary(lock_owner_actor_id) and lock_owner_actor_id != assigns.actor_id
   end
-
-  defp external_link?(link), do: ShowEditHelpers.external_link?(link)
 
   defp unit_for_flashcard_preview(assigns),
     do: ShowEditHelpers.unit_for_flashcard_preview(assigns)
