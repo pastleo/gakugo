@@ -306,7 +306,18 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
                       <.icon name="hero-ellipsis-horizontal" class="size-4" />
                     </summary>
 
-                    <div class="absolute right-0 top-8 z-20 w-40 rounded-lg border border-base-300 bg-base-100 p-1.5 shadow-lg">
+                    <div class="absolute right-0 top-8 z-20 w-48 rounded-lg border border-base-300 bg-base-100 p-1.5 shadow-lg">
+                      <button
+                        id={"copy-page-items-#{page.id}"}
+                        type="button"
+                        phx-click="copy_page_items"
+                        phx-value-page_id={page.id}
+                        class="inline-flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-base-content transition hover:bg-base-200"
+                        title="Copy page items as an unordered list"
+                      >
+                        <.icon name="hero-clipboard-document" class="size-3.5" /> Copy into clipboard
+                      </button>
+
                       <button
                         id={"move-page-up-#{page.id}"}
                         type="button"
@@ -1294,6 +1305,30 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
         {:error, _reason} ->
           {:noreply, put_flash(socket, :error, "Failed to move page")}
       end
+    end
+  end
+
+  def handle_event("copy_page_items", %{"page_id" => page_id}, socket) do
+    page_id = String.to_integer(page_id)
+
+    case Enum.find(socket.assigns.unit.pages, fn candidate -> candidate.id == page_id end) do
+      nil ->
+        {:noreply, socket}
+
+      page ->
+        nodes =
+          socket.assigns.page_states
+          |> Map.get(page.id, %{})
+          |> Map.get(:nodes, page.items || [])
+
+        clipboard_text = render_nodes_as_unordered_list(nodes)
+
+        {:noreply,
+         push_event(socket, "copy-text-to-clipboard", %{
+           text: clipboard_text,
+           success_message: "Copied page items to clipboard",
+           page_id: page.id
+         })}
     end
   end
 
@@ -2298,9 +2333,79 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
 
   defp strip_html_tags(text) when is_binary(text) do
     text
+    |> String.replace(~r/<br\s*\/?\s*>/i, "\n")
+    |> String.replace(~r/<\/p\s*>/i, "\n")
+    |> String.replace(~r/<\/div\s*>/i, "\n")
+    |> String.replace(~r/<\/li\s*>/i, "\n")
     |> String.replace(~r/<[^>]*>/, "")
     |> String.trim()
   end
+
+  defp render_nodes_as_unordered_list(nodes) when is_list(nodes) do
+    nodes
+    |> Enum.map(&render_node_as_unordered_list(&1, 0))
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join("\n")
+    |> String.trim()
+  end
+
+  defp render_nodes_as_unordered_list(_), do: ""
+
+  defp render_node_as_unordered_list(node, depth) when is_map(node) do
+    text =
+      node
+      |> Map.get("text", "")
+      |> normalize_clipboard_text()
+
+    current_line =
+      if text == "" do
+        ""
+      else
+        indent = String.duplicate("  ", depth)
+        continuation_indent = indent <> "  "
+
+        text
+        |> String.split("\n")
+        |> Enum.map(&String.trim/1)
+        |> Enum.reject(&(&1 == ""))
+        |> case do
+          [] ->
+            ""
+
+          [first | rest] ->
+            Enum.join(
+              [indent <> "- " <> first | Enum.map(rest, &(continuation_indent <> &1))],
+              "\n"
+            )
+        end
+      end
+
+    children =
+      node
+      |> Map.get("children", [])
+      |> Enum.map(&render_node_as_unordered_list(&1, depth + 1))
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.join("\n")
+
+    [current_line, children]
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join("\n")
+  end
+
+  defp render_node_as_unordered_list(_, _), do: ""
+
+  defp normalize_clipboard_text(text) when is_binary(text) do
+    text
+    |> strip_html_tags()
+    |> String.replace("\u00A0", " ")
+    |> String.replace(~r/\r\n?/, "\n")
+    |> String.split("\n")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join("\n")
+  end
+
+  defp normalize_clipboard_text(_), do: ""
 
   defp editor_target(%{"node_id" => node_id, "path" => path}) do
     %{"node_id" => node_id, "path" => path}

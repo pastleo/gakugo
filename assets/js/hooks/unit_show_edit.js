@@ -1300,6 +1300,95 @@ export const NotebookDnd = {
     this.dragState = null
     this.dropTarget = null
 
+    this.copyNoticeTimer = null
+    this.copyNoticeEl = null
+
+    this.copyTextToClipboard = async text => {
+      if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(text)
+        return
+      }
+
+      const textarea = document.createElement("textarea")
+      textarea.value = text
+      textarea.setAttribute("readonly", "readonly")
+      textarea.style.position = "fixed"
+      textarea.style.top = "-9999px"
+      textarea.style.left = "-9999px"
+      document.body.appendChild(textarea)
+      textarea.focus()
+      textarea.select()
+      document.execCommand("copy")
+      textarea.remove()
+    }
+
+    this.closeOpenMenus = () => {
+      document.querySelectorAll("details[open]").forEach(details => {
+        details.open = false
+      })
+    }
+
+    this.showCopyNotice = message => {
+      if (!message) {
+        return
+      }
+
+      if (!this.copyNoticeEl) {
+        this.copyNoticeEl = document.createElement("div")
+        this.copyNoticeEl.className = [
+          "pointer-events-none fixed bottom-4 left-1/2 z-[70] -translate-x-1/2 rounded-xl",
+          "border border-success/25 bg-success px-3 py-2 text-sm font-medium text-success-content",
+          "shadow-lg transition-opacity duration-200",
+        ].join(" ")
+        document.body.appendChild(this.copyNoticeEl)
+      }
+
+      this.copyNoticeEl.textContent = message
+      this.copyNoticeEl.style.opacity = "1"
+
+      if (this.copyNoticeTimer) {
+        clearTimeout(this.copyNoticeTimer)
+      }
+
+      this.copyNoticeTimer = setTimeout(() => {
+        if (this.copyNoticeEl) {
+          this.copyNoticeEl.style.opacity = "0"
+        }
+      }, 1400)
+    }
+
+    this.flashCopyButton = pageId => {
+      if (!pageId) {
+        return
+      }
+
+      const button = document.getElementById(`copy-page-items-${pageId}`)
+
+      if (!button) {
+        return
+      }
+
+      const originalHtml = button.innerHTML
+      button.innerHTML = '<span class="hero-check size-3.5"></span> Copied!'
+      button.disabled = true
+
+      window.setTimeout(() => {
+        button.innerHTML = originalHtml
+        button.disabled = false
+      }, 1200)
+    }
+
+    this.handleEvent("copy-text-to-clipboard", async ({text, success_message, page_id}) => {
+      try {
+        await this.copyTextToClipboard(text || "")
+        this.closeOpenMenus()
+        this.flashCopyButton(page_id)
+        this.showCopyNotice(success_message || "Copied")
+      } catch (_error) {
+        this.showCopyNotice("Couldn’t copy to clipboard automatically")
+      }
+    })
+
     this.clearDropTarget = () => {
       if (!this.dropTarget) {
         return
@@ -1463,5 +1552,13 @@ export const NotebookDnd = {
     this.el.removeEventListener("drop", this.onDrop)
     this.el.removeEventListener("dragend", this.onDragEnd)
     this.cleanupDragState()
+
+    if (this.copyNoticeTimer) {
+      clearTimeout(this.copyNoticeTimer)
+      this.copyNoticeTimer = null
+    }
+
+    this.copyNoticeEl?.remove()
+    this.copyNoticeEl = null
   },
 }
