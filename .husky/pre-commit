@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+set -e
+
+mix format --check-formatted
+mix compile --warnings-as-errors
+mix test
+
+cd assets
+npm run check

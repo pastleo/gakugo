@@ -1,9 +1,9 @@
 defmodule GakugoWeb.UnitLive.Form do
   use GakugoWeb, :live_view
 
-  alias Gakugo.Learning
-  alias Gakugo.Learning.Unit
-  alias Gakugo.Learning.FromTargetLang
+  alias Gakugo.Db
+  alias Gakugo.Db.Unit
+  alias Gakugo.Db.FromTargetLang
 
   @impl true
   def render(assigns) do
@@ -44,12 +44,12 @@ defmodule GakugoWeb.UnitLive.Form do
   defp return_to(_), do: "index"
 
   defp apply_action(socket, :edit, %{"id" => id}) do
-    unit = Learning.get_unit!(id)
+    unit = Db.get_unit!(id)
 
     socket
     |> assign(:page_title, "Edit Unit")
     |> assign(:unit, unit)
-    |> assign(:form, to_form(Learning.change_unit(unit)))
+    |> assign(:form, to_form(Db.change_unit(unit)))
   end
 
   defp apply_action(socket, :new, _params) do
@@ -58,12 +58,12 @@ defmodule GakugoWeb.UnitLive.Form do
     socket
     |> assign(:page_title, "New Unit")
     |> assign(:unit, unit)
-    |> assign(:form, to_form(Learning.change_unit(unit)))
+    |> assign(:form, to_form(Db.change_unit(unit)))
   end
 
   @impl true
   def handle_event("validate", %{"unit" => unit_params}, socket) do
-    changeset = Learning.change_unit(socket.assigns.unit, unit_params)
+    changeset = Db.change_unit(socket.assigns.unit, unit_params)
     {:noreply, assign(socket, form: to_form(changeset, action: :validate))}
   end
 
@@ -72,7 +72,7 @@ defmodule GakugoWeb.UnitLive.Form do
   end
 
   defp save_unit(socket, :edit, unit_params) do
-    case Learning.update_unit(socket.assigns.unit, unit_params) do
+    case Db.update_unit(socket.assigns.unit, unit_params) do
       {:ok, unit} ->
         {:noreply,
          socket
@@ -85,7 +85,7 @@ defmodule GakugoWeb.UnitLive.Form do
   end
 
   defp save_unit(socket, :new, unit_params) do
-    case Learning.create_unit(unit_params) do
+    case Db.create_unit(unit_params) do
       {:ok, unit} ->
         {:noreply,
          socket

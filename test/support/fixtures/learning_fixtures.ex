@@ -1,7 +1,7 @@
 defmodule Gakugo.LearningFixtures do
   @moduledoc """
   This module defines test helpers for creating
-  entities via the `Gakugo.Learning` context.
+  entities via the `Gakugo.Db` context.
   """
 
   @doc """
@@ -14,7 +14,7 @@ defmodule Gakugo.LearningFixtures do
         from_target_lang: "JA-from-zh-TW",
         title: "some title"
       })
-      |> Gakugo.Learning.create_unit()
+      |> Gakugo.Db.create_unit()
 
     unit
   end
@@ -28,11 +28,20 @@ defmodule Gakugo.LearningFixtures do
     {:ok, page} =
       attrs
       |> Enum.into(%{
-        items: [%{"text" => "", "front" => false, "children" => []}],
+        items: [
+          %{
+            "text" => "",
+            "depth" => 0,
+            "flashcard" => false,
+            "answer" => false,
+            "textColor" => nil,
+            "backgroundColor" => nil
+          }
+        ],
         title: "some page",
         unit_id: unit && unit.id
       })
-      |> Gakugo.Learning.create_page()
+      |> Gakugo.Db.create_page()
 
     page
   end

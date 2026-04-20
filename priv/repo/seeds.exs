@@ -2,24 +2,24 @@
 #
 #     mix run priv/repo/seeds.exs
 
-alias Gakugo.Learning
-alias Gakugo.Learning.Unit
+alias Gakugo.Db
+alias Gakugo.Db.Unit
 alias Gakugo.Repo
 
 # Keep seeds notebook-first while legacy Grammar/Vocabulary/Flashcard flows are deprecated.
 Repo.delete_all(Unit)
 
 {:ok, unit} =
-  Learning.create_unit(%{
+  Db.create_unit(%{
     title: "Getting Started",
     from_target_lang: "JA-from-zh-TW"
   })
 
-unit = Learning.get_unit!(unit.id)
+unit = Db.get_unit!(unit.id)
 default_page = hd(unit.pages)
 
 {:ok, _grammar_page} =
-  Learning.update_page(default_page, %{
+  Db.update_page(default_page, %{
     title: "Grammar",
     items: [
       %{
@@ -79,7 +79,7 @@ default_page = hd(unit.pages)
   })
 
 {:ok, _vocab_page} =
-  Learning.create_page(%{
+  Db.create_page(%{
     unit_id: unit.id,
     title: "Vocabularies",
     items: [

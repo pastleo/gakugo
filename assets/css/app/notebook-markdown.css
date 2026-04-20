@@ -1,0 +1,183 @@
+/* Notebook markdown editor typography */
+:where(.ProseMirror.editor) {
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+  text-rendering: optimizeLegibility;
+  caret-color: var(--color-primary);
+}
+
+:where(.ProseMirror.editor) > * + * {
+  margin-top: 0.75rem;
+}
+
+:where(.ProseMirror.editor) > :first-child {
+  margin-top: 0;
+}
+
+:where(.ProseMirror.editor) :is(h1, h2, h3, h4, h5, h6) {
+  margin-block: 1rem 0.35rem;
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: -0.03em;
+  color: color-mix(in oklab, currentColor 88%, var(--color-primary) 12%);
+}
+
+:where(.ProseMirror.editor) h1 {
+  font-size: 1.8em;
+}
+
+:where(.ProseMirror.editor) h2 {
+  font-size: 1.5em;
+}
+
+:where(.ProseMirror.editor) h3 {
+  font-size: 1.28em;
+}
+
+:where(.ProseMirror.editor) h4 {
+  font-size: 1.12em;
+}
+
+:where(.ProseMirror.editor) h5,
+:where(.ProseMirror.editor) h6 {
+  font-size: 1em;
+}
+
+:where(.ProseMirror.editor) p {
+  margin: 0;
+}
+
+:where(.ProseMirror.editor) :is(ul, ol) {
+  margin: 0;
+  padding-inline-start: 1.4rem;
+  list-style-position: outside;
+}
+
+:where(.ProseMirror.editor) ul {
+  list-style-type: disc;
+}
+
+:where(.ProseMirror.editor) ol {
+  list-style-type: decimal;
+}
+
+:where(.ProseMirror.editor) :is(ul, ol) > li {
+  margin: 0.2rem 0;
+}
+
+:where(.ProseMirror.editor) :is(ul, ol) > li > p {
+  margin: 0;
+}
+
+:where(.ProseMirror.editor) li::marker {
+  color: color-mix(in oklab, currentColor 60%, var(--color-primary) 40%);
+}
+
+:where(.ProseMirror.editor) blockquote {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-inline-start: 0.25rem solid
+    color-mix(in oklab, var(--color-primary) 45%, var(--color-base-content) 55%);
+  border-radius: 0 0.9rem 0.9rem 0;
+  background: color-mix(in oklab, var(--color-base-200) 74%, transparent);
+  color: color-mix(in oklab, currentColor 82%, var(--color-base-content) 18%);
+  font-style: italic;
+}
+
+:where(.ProseMirror.editor) blockquote > :first-child {
+  margin-top: 0;
+}
+
+:where(.ProseMirror.editor) blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+:where(.ProseMirror.editor) blockquote p {
+  margin: 0;
+}
+
+:where(.ProseMirror.editor) :is(code, pre) {
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    SF Mono,
+    Menlo,
+    Monaco,
+    Consolas,
+    Liberation Mono,
+    monospace;
+}
+
+:where(.ProseMirror.editor) code:not(pre code) {
+  border: 1px solid color-mix(in oklab, var(--color-base-300) 82%, transparent);
+  border-radius: 0.45rem;
+  background: color-mix(in oklab, var(--color-base-200) 82%, transparent);
+  padding: 0.12rem 0.38rem;
+  font-size: 0.92em;
+}
+
+:where(.ProseMirror.editor) pre {
+  margin: 0;
+  overflow-x: auto;
+  border: 1px solid color-mix(in oklab, var(--color-base-300) 82%, transparent);
+  border-radius: 0.95rem;
+  background: color-mix(in oklab, var(--color-base-200) 84%, transparent);
+  padding: 0.95rem 1rem;
+  box-shadow: inset 0 1px 0
+    color-mix(in oklab, var(--color-base-content) 6%, transparent);
+}
+
+:where(.ProseMirror.editor) pre code {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 0.92em;
+  line-height: 1.65;
+  white-space: pre;
+}
+
+:where(.ProseMirror.editor) hr {
+  height: 2px;
+  margin: 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-primary);
+}
+
+:where(.ProseMirror.editor) a {
+  color: var(--color-primary);
+  text-decoration-line: underline;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18em;
+  transition:
+    color 150ms ease,
+    opacity 150ms ease;
+}
+
+:where(.ProseMirror.editor) a:hover {
+  color: color-mix(
+    in oklab,
+    var(--color-primary) 82%,
+    var(--color-base-content) 18%
+  );
+}
+
+:where(.ProseMirror.editor) strong {
+  font-weight: 700;
+  color: color-mix(in oklab, currentColor 92%, var(--color-base-content) 8%);
+}
+
+:where(.ProseMirror.editor) em {
+  font-style: italic;
+}
+
+:where(.ProseMirror.editor) del {
+  color: color-mix(in oklab, currentColor 68%, var(--color-base-content) 32%);
+  text-decoration-thickness: 0.1em;
+  text-decoration-color: color-mix(
+    in oklab,
+    currentColor 50%,
+    var(--color-base-content) 50%
+  );
+}

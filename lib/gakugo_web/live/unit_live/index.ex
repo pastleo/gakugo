@@ -2,8 +2,8 @@ defmodule GakugoWeb.UnitLive.Index do
   use GakugoWeb, :live_view
 
   alias Gakugo.AI.Config, as: AIConfig
-  alias Gakugo.Learning
-  alias Gakugo.Learning.FromTargetLang
+  alias Gakugo.Db
+  alias Gakugo.Db.FromTargetLang
 
   @impl true
   def render(assigns) do
@@ -119,7 +119,7 @@ defmodule GakugoWeb.UnitLive.Index do
      |> assign(:show_recycle_bin, false)
      |> assign(:refreshing_ai_models, ai_loading?(ai_runtime))
      |> assign(:ai_runtime, ai_runtime)
-     |> assign(:deleted_units, Learning.list_deleted_units())
+     |> assign(:deleted_units, Db.list_deleted_units())
      |> stream(:units, list_units())}
   end
 
@@ -140,25 +140,25 @@ defmodule GakugoWeb.UnitLive.Index do
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    unit = Learning.get_unit!(id)
-    {:ok, _unit} = Learning.delete_unit(unit)
+    unit = Db.get_unit!(id)
+    {:ok, _unit} = Db.delete_unit(unit)
 
     {:noreply,
      socket
      |> stream_delete(:units, unit)
-     |> assign(:deleted_units, Learning.list_deleted_units())
+     |> assign(:deleted_units, Db.list_deleted_units())
      |> put_flash(:info, "Unit moved to recycle bin")}
   end
 
   @impl true
   def handle_event("restore", %{"id" => id}, socket) do
-    unit = Learning.get_unit_with_deleted!(id)
-    {:ok, restored_unit} = Learning.restore_unit(unit)
+    unit = Db.get_unit_with_deleted!(id)
+    {:ok, restored_unit} = Db.restore_unit(unit)
 
     {:noreply,
      socket
      |> stream_insert(:units, restored_unit)
-     |> assign(:deleted_units, Learning.list_deleted_units())
+     |> assign(:deleted_units, Db.list_deleted_units())
      |> put_flash(:info, "Unit restored")}
   end
 
@@ -188,7 +188,7 @@ defmodule GakugoWeb.UnitLive.Index do
   end
 
   defp list_units() do
-    Learning.list_units()
+    Db.list_units()
   end
 
   defp ai_loading?(ai_runtime) do

@@ -1,0 +1,36 @@
+/* Nested list editor */
+.nested-list-editor {
+  min-height: 2.5rem;
+}
+
+.notebook-paper {
+  background-color: color-mix(
+    in oklab,
+    var(--color-base-100) 88%,
+    var(--color-primary) 12%
+  );
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 33px,
+    color-mix(in oklab, var(--color-base-300) 70%, transparent) 33px,
+    color-mix(in oklab, var(--color-base-300) 70%, transparent) 34px
+  );
+}
+
+.notebook-line-input {
+  font-family:
+    "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+}
+
+.focus-menu-panel {
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+}
+
+.focus-menu:focus-within .focus-menu-panel {
+  pointer-events: auto;
+  visibility: visible;
+  opacity: 1;
+}

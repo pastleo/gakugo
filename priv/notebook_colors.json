@@ -1,0 +1,98 @@
+[
+  {
+    "name": "red",
+    "label": "Red",
+    "light": { "foreground": "#b42318", "background": "#ffe4e2" },
+    "dark": { "foreground": "#fda29b", "background": "#7a271a" }
+  },
+  {
+    "name": "orange",
+    "label": "Orange",
+    "light": { "foreground": "#c2410c", "background": "#ffedd5" },
+    "dark": { "foreground": "#fdba74", "background": "#7c2d12" }
+  },
+  {
+    "name": "amber",
+    "label": "Amber",
+    "light": { "foreground": "#b45309", "background": "#fef3c7" },
+    "dark": { "foreground": "#fcd34d", "background": "#78350f" }
+  },
+  {
+    "name": "yellow",
+    "label": "Yellow",
+    "light": { "foreground": "#a16207", "background": "#fef9c3" },
+    "dark": { "foreground": "#fde047", "background": "#713f12" }
+  },
+  {
+    "name": "lime",
+    "label": "Lime",
+    "light": { "foreground": "#4d7c0f", "background": "#ecfccb" },
+    "dark": { "foreground": "#bef264", "background": "#365314" }
+  },
+  {
+    "name": "green",
+    "label": "Green",
+    "light": { "foreground": "#15803d", "background": "#dcfce7" },
+    "dark": { "foreground": "#86efac", "background": "#14532d" }
+  },
+  {
+    "name": "emerald",
+    "label": "Emerald",
+    "light": { "foreground": "#047857", "background": "#d1fae5" },
+    "dark": { "foreground": "#6ee7b7", "background": "#064e3b" }
+  },
+  {
+    "name": "teal",
+    "label": "Teal",
+    "light": { "foreground": "#0f766e", "background": "#ccfbf1" },
+    "dark": { "foreground": "#5eead4", "background": "#134e4a" }
+  },
+  {
+    "name": "cyan",
+    "label": "Cyan",
+    "light": { "foreground": "#0e7490", "background": "#cffafe" },
+    "dark": { "foreground": "#67e8f9", "background": "#164e63" }
+  },
+  {
+    "name": "sky",
+    "label": "Sky",
+    "light": { "foreground": "#0369a1", "background": "#e0f2fe" },
+    "dark": { "foreground": "#7dd3fc", "background": "#0c4a6e" }
+  },
+  {
+    "name": "blue",
+    "label": "Blue",
+    "light": { "foreground": "#1d4ed8", "background": "#dbeafe" },
+    "dark": { "foreground": "#93c5fd", "background": "#1e3a8a" }
+  },
+  {
+    "name": "indigo",
+    "label": "Indigo",
+    "light": { "foreground": "#4338ca", "background": "#e0e7ff" },
+    "dark": { "foreground": "#a5b4fc", "background": "#312e81" }
+  },
+  {
+    "name": "violet",
+    "label": "Violet",
+    "light": { "foreground": "#6d28d9", "background": "#ede9fe" },
+    "dark": { "foreground": "#c4b5fd", "background": "#4c1d95" }
+  },
+  {
+    "name": "purple",
+    "label": "Purple",
+    "light": { "foreground": "#7e22ce", "background": "#f3e8ff" },
+    "dark": { "foreground": "#d8b4fe", "background": "#581c87" }
+  },
+  {
+    "name": "pink",
+    "label": "Pink",
+    "light": { "foreground": "#be185d", "background": "#fce7f3" },
+    "dark": { "foreground": "#f9a8d4", "background": "#831843" }
+  },
+  {
+    "name": "rose",
+    "label": "Rose",
+    "light": { "foreground": "#e11d48", "background": "#ffe4e6" },
+    "dark": { "foreground": "#fda4af", "background": "#881337" }
+  }
+]

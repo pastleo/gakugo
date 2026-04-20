@@ -236,16 +236,27 @@ defmodule GakugoWeb.CoreComponents do
     <div class="fieldset mb-2">
       <label>
         <span :if={@label} class="label mb-1">{@label}</span>
-        <select
-          id={@id}
-          name={@name}
-          class={[@class || "w-full select", @errors != [] && (@error_class || "select-error")]}
-          multiple={@multiple}
-          {@rest}
-        >
-          <option :if={@prompt} value="">{@prompt}</option>
-          {Phoenix.HTML.Form.options_for_select(@options, @value)}
-        </select>
+        <div class="relative">
+          <select
+            id={@id}
+            name={@name}
+            class={[
+              @class ||
+                "w-full appearance-none rounded-xl border border-base-300 bg-base-100 px-3 py-2.5 pr-10 text-base-content shadow-none outline-hidden transition focus:border-primary",
+              @errors != [] && (@error_class || "border-error focus:border-error")
+            ]}
+            multiple={@multiple}
+            {@rest}
+          >
+            <option :if={@prompt} value="">{@prompt}</option>
+            {Phoenix.HTML.Form.options_for_select(@options, @value)}
+          </select>
+          <.icon
+            :if={!@multiple}
+            name="hero-chevron-down"
+            class="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-base-content/55"
+          />
+        </div>
       </label>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
@@ -428,8 +439,8 @@ defmodule GakugoWeb.CoreComponents do
   You can customize the size and colors of the icons by setting
   width, height, and background color classes.
 
-  Icons are extracted from the `deps/heroicons` directory and bundled within
-  your compiled app.css by the plugin in `assets/vendor/heroicons.js`.
+  Icons are extracted from the npm `heroicons` package and bundled within
+  your compiled app.css by the plugin in `assets/css/plugins/heroicons.js`.
 
   ## Examples
 

@@ -51,22 +51,18 @@ defmodule Gakugo.MixProject do
       {:phoenix_live_dashboard, "~> 0.8.3"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},
-      {:heroicons,
-       github: "tailwindlabs/heroicons",
-       tag: "v2.2.0",
-       sparse: "optimized",
-       app: false,
-       compile: false,
-       depth: 1},
       {:swoosh, "~> 1.16"},
       {:req, "~> 0.5"},
+      {:mdex, "~> 0.12.1"},
+      {:mdex_gfm, "~> 0.1"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
-      {:pythonx, "~> 0.4.0"}
+      {:pythonx, "~> 0.4.0"},
+      {:y_ex, "~> 0.10.5"}
     ]
   end
 

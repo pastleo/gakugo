@@ -21,6 +21,7 @@ erl_crash.dump
 
 # Temporary files, for example, from tests.
 /tmp/
+/.playwright-mcp/
 
 # Ignore package tarball (built via "mix hex.build").
 gakugo-*.tar
@@ -41,4 +42,3 @@ npm-debug.log
 
 # Local dev config
 /config/*.local.exs
-

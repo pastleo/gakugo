@@ -1,0 +1,6 @@
+# Ignore artifacts:
+node_modules
+coverage
+
+# Ignore generated or external assets:
+vendor

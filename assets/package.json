@@ -1,9 +1,42 @@
 {
   "private": true,
+  "scripts": {
+    "ts:check": "tsc --noEmit",
+    "eslint:check": "eslint js eslint.config.mjs css/plugins",
+    "prettier:check": "prettier --check \"js/**/*.{js,jsx,ts,tsx,mjs,cjs}\" \"css/**/*.css\" eslint.config.mjs .prettierrc",
+    "check": "npm run ts:check && npm run eslint:check && npm run prettier:check",
+    "eslint:format": "eslint js eslint.config.mjs css/plugins --fix",
+    "prettier:format": "prettier --write \"js/**/*.{js,jsx,ts,tsx,mjs,cjs}\" \"css/**/*.css\" eslint.config.mjs .prettierrc",
+    "format": "npm run eslint:format && npm run prettier:format",
+    "prepare": "cd .. && husky"
+  },
   "dependencies": {
+    "@milkdown/kit": "^7.20.0",
+    "@milkdown/plugin-collab": "^7.20.0",
+    "@milkdown/react": "^7.20.0",
+    "@milkdown/utils": "^7.20.0",
+    "heroicons": "^2.2.0",
     "phoenix": "file:../deps/phoenix",
     "phoenix_html": "file:../deps/phoenix_html",
     "phoenix_live_view": "file:../deps/phoenix_live_view",
-    "quill": "^2.0.3"
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "topbar": "^3.0.1",
+    "yjs": "^13.6.27",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "daisyui": "^5.5.19",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "globals": "^17.4.0",
+    "husky": "^9.1.7",
+    "prettier": "3.6.2",
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.58.0"
   }
 }

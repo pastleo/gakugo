@@ -1,0 +1,12 @@
+/* Inline edit field styles */
+.inline-edit-field .fieldset {
+  margin-bottom: 0;
+}
+
+.inline-edit-field .fieldset label {
+  display: contents;
+}
+
+.inline-edit-field .fieldset label .label {
+  display: none;
+}

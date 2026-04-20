@@ -14,6 +14,12 @@ defmodule GakugoWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :notebook_action_api do
+    plug :accepts, ["json"]
+    plug :fetch_session
+    plug :protect_from_forgery
+  end
+
   scope "/", GakugoWeb do
     pipe_through :browser
 
@@ -23,10 +29,12 @@ defmodule GakugoWeb.Router do
     live "/units/:id/edit", UnitLive.Form, :edit
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", GakugoWeb do
-  #   pipe_through :api
-  # end
+  scope "/api/notebook_action", GakugoWeb do
+    pipe_through :notebook_action_api
+
+    post "/parse_as_items", NotebookActionController, :parse_as_items
+    post "/parse_as_flashcards", NotebookActionController, :parse_as_flashcards
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:gakugo, :dev_routes) do

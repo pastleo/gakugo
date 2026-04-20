@@ -59,52 +59,54 @@ Sync features are disabled if sync env vars are not set.
 
 ## Real-Time Collaboration (Notebook)
 
-- Collaboration is unit-scoped via PubSub topic `unit:notebook:{unit_id}`.
-- `Gakugo.Learning.Notebook.UnitSession` is the per-unit runtime process (started on demand via `DynamicSupervisor` + `Registry`) and now centralizes lock state, version state, autosave debounce state, and local intent application.
-- `Gakugo.Learning.Notebook.Editor.apply/2` remains a pure reducer for page-items mutation logic; both local and remote flows still use it for deterministic behavior.
-- Operation envelopes include `op_id`, `actor_id`, `page_id`, `base_version`, `version`, `command`, and `nodes` snapshot fallback; sessions ignore own echoes and dedupe by `op_id`.
-- Item/title locks are keyed by `page_id + lock_path` and managed with lease + heartbeat (`item_lock_acquire`, `item_lock_heartbeat`, `item_lock_release`), with lock updates broadcast as `{:item_locks_changed, %{unit_id: ...}}`.
-- Unit and page metadata (unit title, language pair, page title) synchronize by broadcasting `{:unit_meta_changed, %{...}}` after save; remote sessions reload from DB.
-- Page structure changes (add/delete) broadcast `{:unit_pages_changed, %{...}}`; remote sessions reload page/unit state.
+The collaborative-editing architecture has changed significantly and the old lock-based / narrow-event description is no longer accurate.
 
-### Core components
+Read this file for the implemented architecture:
+- `docs/notebook-collaborative-editing.md`
 
-- `GakugoWeb.UnitLive.ShowEdit`
-  - subscribes to `unit:notebook:{unit_id}`
-  - handles view rendering, client hooks, op dedupe/echo guards, and remote reconcile
-  - delegates local mutation intents and autosave orchestration to `UnitSession`
-- `Gakugo.Learning.Notebook.UnitSession`
-  - per-unit GenServer runtime started on first access
-  - owns lock leases, version allocation/observe, autosave debounce queues, and local intent apply (`apply_intent/7`)
-  - monitors actor pids and releases their locks on disconnect/timeout
-- `Gakugo.Learning.Notebook.PageVersionRegistry`
-  - compatibility wrapper that delegates version APIs to `UnitSession`
-- `Gakugo.Learning.Notebook.ItemLockRegistry`
-  - compatibility wrapper that delegates lock APIs to `UnitSession`
+Durable truths to keep in mind:
+- notebook editing/sync logic is intentionally separated into 3 layers:
+  - view layer: LiveView + React are transport/UI shells and should not talk to `Gakugo.Db` directly during editing
+  - notebook runtime layer: `Gakugo.Notebook.*` owns notebook runtime logic, with `Gakugo.Notebook.UnitSession` as the canonical runtime controller for a unit
+  - persistence layer: `Gakugo.Db.*` owns Ecto/database reads and writes
+- notebook collaboration is unit-scoped via PubSub topic `unit:notebook:{unit_id}`
+- `Gakugo.Notebook.UnitSession` / `Gakugo.Learning.Notebook.UnitSession` is the canonical runtime mutation owner and holder of the canonical in-memory unit state
+- React now constructs canonical `apply_intent` payloads directly for main notebook actions
+- `GakugoWeb.UnitLive.ShowEdit` should be treated as a transport/shell bridge, not the source of collaboration truth
+- `move_item` is a first-class canonical intent action, including cross-page movement
+- sender replies and peer updates converge on shared canonical update handling through `react:update` / shared `applyUpdate(update)` logic
+- runtime state is read from `UnitSession.snapshot/1`, then persisted downstream rather than treating DB state as the live editing owner
+- structural editing keybindings/spec for the notebook editor live in `docs/notebook-structural-editing-keybindings.md`; keep focus choreography on the React side rather than the server
 
-### Event flow
+### Collaboration layers and protocol
 
-- Local mutation:
-  - UI event -> `UnitSession.apply_intent/7` (lock guard + reducer + version) -> queue autosave in `UnitSession` -> broadcast op.
-- Remote mutation:
-  - receive PubSub op -> dedupe/echo guard -> observe remote version -> version gate -> reducer apply (or snapshot fallback) -> queue autosave.
-- Item lock flow:
-  - client focus/options-open -> `item_lock_acquire`
-  - heartbeat every 4s -> `item_lock_heartbeat`
-  - blur/options-close/unmount -> `item_lock_release`
-  - lock changes broadcast as `{:item_locks_changed, %{unit_id: ...}}`
-- Item drag-and-drop flow:
-  - drag starts from item options badge (`data-dnd-drag-handle`) in `UnitLive.ShowEdit`
-  - client emits `move_item` with source/target page + node identity
-  - same-page moves use reducer command `{:move_node, ...}`; cross-page moves are remove + insert operations
-  - all moves still pass through `UnitSession.apply_intent/7` so versioning, autosave, and PubSub sync remain consistent
-- Unit/page metadata sync flow:
-  - local autosave success (performed by `UnitSession`) -> broadcast `{:unit_meta_changed, %{...}}`
-  - remote receive -> reload unit/page metadata from DB and refresh local forms/state
-- Presence/runtime lifecycle:
-  - LiveView heartbeats actor presence to `UnitSession`
-  - `UnitSession` monitors actor pids and prunes inactive actors/locks
-  - unit process self-terminates after idle timeout when no active actors/locks/pending saves
+- Keep these protocol layers conceptually separate:
+  1. intent - browser/React requests an operation via `apply_intent`
+  2. reply envelope - LiveView returns sender-local status/update payloads
+  3. update packet - canonical inner update payload reused for sender replies and peer broadcasts
+- Main current intent families:
+  - `page_content`
+  - `page_meta`
+  - `unit_meta`
+  - `page_list`
+- `move_item` is special-cased as a first-class action because cross-page movement needs orchestration across source/target pages, versions, and persistence
+- runtime page identity is just `page_id`
+- runtime page version lives on the runtime page map itself as `page.version`
+- page ordering UI affordances such as move-up/move-down should be derived client-side from page order, not emitted by the server
+- Prefer the principle: one canonical update packet, many transport envelopes
+
+### Collaboration ownership
+
+- `GakugoWeb.UnitLive.ShowEdit` still owns shell-level assigns/forms and transport bridging, but should stay thin
+- `UnitSession` owns intent handling, runtime mutation, version tracking, persistence scheduling, broadcast emission, snapshot generation, and canonical result construction
+- After initialization, read/edit notebook state from canonical runtime state wherever possible; DB access is for init and downstream persistence, not interactive editing ownership
+
+### Practical reading order
+
+- `lib/gakugo/learning/notebook/unit_session.ex`
+- `lib/gakugo_web/live/unit_live/show_edit.ex`
+- `assets/js/notebook-editor.tsx`
+- `assets/js/feat-components/notebook-editor.tsx`
 
 ### Flashcard/Answer rules
 
@@ -113,35 +115,43 @@ Sync features are disabled if sync env vars are not set.
 - `answer: true` is allowed for descendants inside a flashcard branch.
 - `answer: true` is also allowed on the flashcard item itself (`front: true`) when explicitly selected.
 
-## Notebook-first AI Direction
+## Notebook-first AI / Action Direction
 
-- Legacy model-centric entities (`Grammar`, `Vocabulary`, `Flashcard`) and their old CRUD/AI flow have been removed; keep all AI features notebook-native.
-- Breaking changes are allowed in notebook helpers such as `Gakugo.Learning.Notebook.Importer` when needed to align with notebook-first data shapes.
-- New AI functionality should be implemented in the notebook-first workflow (`UnitLive.ShowEdit` + notebook pages/items), including:
-  - import content from image
-  - import content from free text
-  - sentence translation generation directly in notebook context
-- Notebook import implementation notes:
-  - Import entrypoint lives in `UnitLive.ShowEdit` right-side `Import` drawer.
-  - Import action is single-step: if an image is selected, OCR runs first; OCR text is combined with textarea source and parsed together.
-  - OCR model is configured via `config :gakugo, :ollama, ocr_model: ...` (env: `OLLAMA_OCR_MODEL`) instead of hardcoding.
-  - `Gakugo.Learning.Notebook.Importer` is the notebook-native parsing/OCR integration point and should remain model-agnostic/heuristic-light.
-- Notebook sentence-translation generation notes:
-  - Generation entrypoints live in `UnitLive.ShowEdit` from both navbar `Generate` drawer and item options `Generate` button.
-  - Current supported generate type is `Translation practice`.
-  - Vocabulary input is prefilled from clicked item text when opened from item options.
-  - Grammar input comes from selected grammar page by randomly picking one deepest leaf branch and formatting its ancestor chain.
-  - Output location is explicit in drawer:
-    - `Under source item` (available only when opened from item context)
-    - `Append to page root` with selected output page
-  - Generated result is inserted as notebook nodes (`front` sentence + child `answer` sentence) through notebook editor flow.
-  - Integration point is `Gakugo.Learning.Notebook.TranslationPracticeGenerator`, using Ollama structured output via language-pair prompts in `FromTargetLang`.
-- AI entry points and generated outputs should stay in notebook page/item structures so users can edit and collaborate in one place.
+- Legacy model-centric entities (`Grammar`, `Vocabulary`, `Flashcard`) and their old CRUD/AI flow have been removed; keep all parse/generate/AI features notebook-native.
+- Item-local parse/generate functionality now grows through the `Gakugo.NotebookAction.*` action layer instead of the old global import/generate drawer architecture.
+- New notebook-native functionality should preserve this layered shape:
+  - item-local UI shell (for example the `Parse / Generate` drawer)
+  - frontend transport helper (`assets/js/utils/notebook-action-client.ts`)
+  - notebook action web API
+  - `Gakugo.NotebookAction.*`
+  - canonical runtime mutation through `UnitSession.apply_intent(...)`
+- The extra notebook action web API is intentional. Even though it is a second browser-facing command path, it should still converge into canonical runtime mutation through `UnitSession.apply_intent(...)`.
+- Current notebook action entrypoint:
+  - item-local `Parse / Generate` button in the item editor options menu
+- Current implemented actions:
+  - `parse as items`
+  - `parse as flashcards`
+- Planned future actions include things like:
+  - sentence generation with AI
+  - analysis with AI
+  - "ask AI how to say this"
+- Parse/generate/AI outputs should stay in notebook page/item structures so users can edit and collaborate in one place.
+- Keep UI shell state thin. Do not re-bloat `UnitLive.ShowEdit` with the old form-heavy global drawer architecture.
+- Use old git history only as behavioral reference when useful, not as the target structure.
 
 ## Project guidelines
 
 - Use `mix precommit` alias when you are done with all changes and fix any pending issues
 - Use the already included and available `:req` (`Req`) library for HTTP requests, **avoid** `:httpoison`, `:tesla`, and `:httpc`. Req is included by default and is the preferred HTTP client for Phoenix apps
+- Put temporary local artifacts under `tmp/` so git status stays clean. This includes Playwright/debug outputs such as `.playwright-mcp/` snapshots/logs and ad-hoc files like `playwright-*.txt`.
+- Prefer colocated parent/child file structure across the project when a module/component has a clear local subtree. Use the parent file as the primary module file, and place supporting children in a same-name directory instead of relying on `index`-style files. Example:
+
+      some-dir/
+        page-card.tsx
+        page-card/
+          item-row.tsx
+
+  The same idea applies on the Elixir side when a parent module has closely related supporting files. Prefer this structure for clarity and local discoverability.
 
 ### Phoenix v1.8 guidelines
 
@@ -156,10 +166,10 @@ Sync features are disabled if sync env vars are not set.
 - If you override the default input classes (`<.input class="myclass px-2 py-1 rounded-lg">)`) class with your own values, no default classes are inherited, so your
 custom classes must fully style the input
 
-### JS and CSS guidelines
+### Tailwind CSS guidelines
 
-- **Use Tailwind CSS classes and custom CSS rules** to create polished, responsive, and visually stunning interfaces.
-- **Dark mode / theming**: This project uses daisyUI themes with `data-theme` attribute (see `app.css`). The Tailwind `dark:` variant is remapped to `[data-theme=dark]`, which means **`dark:` classes do NOT work with "auto" theme** (system preference). **Always use daisyUI semantic color variables instead of `dark:` variants**:
+- Use Tailwind CSS classes and small custom CSS rules to build polished, responsive interfaces.
+- Dark mode / theming: this project uses daisyUI themes with the `data-theme` attribute (see `assets/css/app.css`). The Tailwind `dark:` variant is remapped to `[data-theme=dark]`, which means `dark:` classes do **not** behave correctly for the `auto` theme. Prefer daisyUI semantic color tokens instead of `dark:` variants:
 
   | Instead of | Use |
   |------------|-----|
@@ -172,22 +182,47 @@ custom classes must fully style the input
   | `text-green-600 dark:text-green-400` | `text-success` |
   | `hover:bg-red-50 dark:hover:bg-red-900/30` | `hover:bg-error/10` |
 
-  These semantic colors automatically adapt to light/dark/auto themes.
-
-- Tailwindcss v4 **no longer needs a tailwind.config.js** and uses a new import syntax in `app.css`:
+- Tailwindcss v4 does not need `tailwind.config.js` in this setup. Maintain the import/source structure in `assets/css/app.css`:
 
       @import "tailwindcss" source(none);
       @source "../css";
       @source "../js";
-      @source "../../lib/my_app_web";
+      @source "../../lib/gakugo_web";
 
-- **Always use and maintain this import syntax** in the app.css file for projects generated with `phx.new`
-- **Never** use `@apply` when writing raw css
-- **Always** manually write your own tailwind-based components instead of using daisyUI for a unique, world-class design
-- Out of the box **only the app.js and app.css bundles are supported**
-  - You cannot reference an external vendor'd script `src` or link `href` in the layouts
-  - You must import the vendor deps into app.js and app.css to use them
-  - **Never write inline <script>custom js</script> tags within templates**
+- Never use `@apply` in raw CSS.
+- Prefer hand-written Tailwind-based UI over leaning on daisyUI components for page structure. Use daisyUI mainly for theme tokens and selective primitives.
+- Only the `app.js` and `app.css` bundles are supported by default:
+  - do not add external `<script src>` or stylesheet `<link href>` tags in layouts for frontend code
+  - import JS dependencies into `app.js`
+  - import CSS/plugin dependencies into `app.css`
+  - never write inline `<script>` tags in HEEx templates
+
+### TypeScript / React frontend guidelines
+
+- Frontend checks live under `assets/` and should be used before finishing frontend work:
+  - `npm run check` for read-only validation (`ts:check`, `eslint:check`, `prettier:check`)
+  - `npm run format` to apply frontend formatting fixes (`eslint:format`, `prettier:format`)
+- Prefer function components and Hooks. Do not introduce class components.
+- Component modularization is encouraged: prefer one component per file.
+- Use PascalCase for component names, and dash-case for filenames.
+- Define explicit TypeScript types/interfaces for component props and shared domain shapes.
+- Keep Phoenix/LiveView integration entrypoints thin. Hook/bootstrap files should mount React, bridge events, and pass initial data; feature logic belongs deeper in the React tree.
+- Follow the current frontend structure direction:
+  - `assets/js/feat-components/` for feature or application-specific UI
+  - `assets/js/components/` for reusable, utility-like shared components
+  - `assets/js/contexts/` for shared React contexts when state truly needs app-wide ownership
+  - `assets/js/utils/` for generic frontend helpers
+  - `assets/js/types/` for shared frontend/domain types when they are reused across features
+- Shared components should stay generic. If a component knows too much about notebook/page/item workflow, it belongs in `feat-components/`, not `components/`.
+- Keep React vs LiveView boundaries explicit:
+  - LiveView owns shell/layout, server-rendered forms, initial hydration payloads, and transport bridge concerns
+  - React owns rich editor interaction, local interaction state, and client-side view composition inside the mounted root
+- Do not scatter LiveView transport details (`pushEvent`, reply envelopes, payload shaping) across presentational components. Keep protocol/integration logic close to the feature boundary.
+- Prefer explicit domain types for notebook entities and protocol payloads instead of repeating anonymous inline object shapes across files.
+- Keep state local by default; lift or introduce context only when multiple branches genuinely need shared ownership.
+- Use relative imports unless path aliases are intentionally added later.
+- Do not fight Prettier or duplicate formatting concerns in ESLint. Prettier owns formatting; ESLint owns correctness and code-quality rules.
+- Shared frontend debug-only affordances should use `assets/js/utils/debug.ts` and the shared `?debug` URL param instead of feature-specific query params.
 
 ### UI/UX & design guidelines
 
@@ -289,314 +324,34 @@ custom classes must fully style the input
 <!-- phoenix:html-start -->
 ## Phoenix HTML guidelines
 
-- Phoenix templates **always** use `~H` or .html.heex files (known as HEEx), **never** use `~E`
-- **Always** use the imported `Phoenix.Component.form/1` and `Phoenix.Component.inputs_for/1` function to build forms. **Never** use `Phoenix.HTML.form_for` or `Phoenix.HTML.inputs_for` as they are outdated
-- When building forms **always** use the already imported `Phoenix.Component.to_form/2` (`assign(socket, form: to_form(...))` and `<.form for={@form} id="msg-form">`), then access those forms in the template via `@form[:field]`
-- **Always** add unique DOM IDs to key elements (like forms, buttons, etc) when writing templates, these IDs can later be used in tests (`<.form for={@form} id="product-form">`)
-- For "app wide" template imports, you can import/alias into the `my_app_web.ex`'s `html_helpers` block, so they will be available to all LiveViews, LiveComponent's, and all modules that do `use MyAppWeb, :html` (replace "my_app" by the actual app name)
+For the longer Phoenix HTML / HEEx / LiveView reference, read:
+- `docs/phoenix-html-liveview-guidelines.md`
 
-- Elixir supports `if/else` but **does NOT support `if/else if` or `if/elsif`. **Never use `else if` or `elseif` in Elixir**, **always** use `cond` or `case` for multiple conditionals.
-
-  **Never do this (invalid)**:
-
-      <%= if condition do %>
-        ...
-      <% else if other_condition %>
-        ...
-      <% end %>
-
-  Instead **always** do this:
-
-      <%= cond do %>
-        <% condition -> %>
-          ...
-        <% condition2 -> %>
-          ...
-        <% true -> %>
-          ...
-      <% end %>
-
-- HEEx require special tag annotation if you want to insert literal curly's like `{` or `}`. If you want to show a textual code snippet on the page in a `<pre>` or `<code>` block you *must* annotate the parent tag with `phx-no-curly-interpolation`:
-
-      <code phx-no-curly-interpolation>
-        let obj = {key: "val"}
-      </code>
-
-  Within `phx-no-curly-interpolation` annotated tags, you can use `{` and `}` without escaping them, and dynamic Elixir expressions can still be used with `<%= ... %>` syntax
-
-- HEEx class attrs support lists, but you must **always** use list `[...]` syntax. You can use the class list syntax to conditionally add classes, **always do this for multiple class values**:
-
-      <a class={[
-        "px-2 text-white",
-        @some_flag && "py-5",
-        if(@other_condition, do: "border-red-500", else: "border-blue-100"),
-        ...
-      ]}>Text</a>
-
-  and **always** wrap `if`'s inside `{...}` expressions with parens, like done above (`if(@other_condition, do: "...", else: "...")`)
-
-  and **never** do this, since it's invalid (note the missing `[` and `]`):
-
-      <a class={
-        "px-2 text-white",
-        @some_flag && "py-5"
-      }> ...
-      => Raises compile syntax error on invalid HEEx attr syntax
-
-- **Never** use `<% Enum.each %>` or non-for comprehensions for generating template content, instead **always** use `<%= for item <- @collection do %>`
-- HEEx HTML comments use `<%!-- comment --%>`. **Always** use the HEEx HTML comment syntax for template comments (`<%!-- comment --%>`)
-- HEEx allows interpolation via `{...}` and `<%= ... %>`, but the `<%= %>` **only** works within tag bodies. **Always** use the `{...}` syntax for interpolation within tag attributes, and for interpolation of values within tag bodies. **Always** interpolate block constructs (if, cond, case, for) within tag bodies using `<%= ... %>`.
-
-  **Always** do this:
-
-      <div id={@id}>
-        {@my_assign}
-        <%= if @some_block_condition do %>
-          {@another_assign}
-        <% end %>
-      </div>
-
-  and **Never** do this – the program will terminate with a syntax error:
-
-      <%!-- THIS IS INVALID NEVER EVER DO THIS --%>
-      <div id="<%= @invalid_interpolation %>">
-        {if @invalid_block_construct do}
-        {end}
-      </div>
+Project-local HTML / HEEx reminders:
+- Use HEEx (`~H` / `.html.heex`), never `~E`.
+- Use `to_form/2`, `<.form for={@form}>`, and `<.input field={@form[:field]}>` instead of driving templates directly from changesets.
+- Give important interactive elements stable DOM IDs for tests and hooks.
+- Use HEEx-native syntax correctly:
+  - `{...}` for attribute interpolation
+  - `<%= ... %>` for block constructs in tag bodies
+  - `<%!-- ... --%>` for comments
+- For multiple conditional classes, use HEEx class lists (`class={[...]}`).
+- Prefer `for` comprehensions in templates over `Enum.each`.
 <!-- phoenix:html-end -->
 
 <!-- phoenix:liveview-start -->
 ## Phoenix LiveView guidelines
 
-- **Never** use the deprecated `live_redirect` and `live_patch` functions, instead **always** use the `<.link navigate={href}>` and  `<.link patch={href}>` in templates, and `push_navigate` and `push_patch` functions LiveViews
-- **Avoid LiveComponent's** unless you have a strong, specific need for them
-- LiveViews should be named like `AppWeb.WeatherLive`, with a `Live` suffix. When you go to add LiveView routes to the router, the default `:browser` scope is **already aliased** with the `AppWeb` module, so you can just do `live "/weather", WeatherLive`
+For the longer Phoenix HTML / HEEx / LiveView reference, read:
+- `docs/phoenix-html-liveview-guidelines.md`
 
-### LiveView streams
-
-- **Always** use LiveView streams for collections for assigning regular lists to avoid memory ballooning and runtime termination with the following operations:
-  - basic append of N items - `stream(socket, :messages, [new_msg])`
-  - resetting stream with new items - `stream(socket, :messages, [new_msg], reset: true)` (e.g. for filtering items)
-  - prepend to stream - `stream(socket, :messages, [new_msg], at: -1)`
-  - deleting items - `stream_delete(socket, :messages, msg)`
-
-- When using the `stream/3` interfaces in the LiveView, the LiveView template must 1) always set `phx-update="stream"` on the parent element, with a DOM id on the parent element like `id="messages"` and 2) consume the `@streams.stream_name` collection and use the id as the DOM id for each child. For a call like `stream(socket, :messages, [new_msg])` in the LiveView, the template would be:
-
-      <div id="messages" phx-update="stream">
-        <div :for={{id, msg} <- @streams.messages} id={id}>
-          {msg.text}
-        </div>
-      </div>
-
-- LiveView streams are *not* enumerable, so you cannot use `Enum.filter/2` or `Enum.reject/2` on them. Instead, if you want to filter, prune, or refresh a list of items on the UI, you **must refetch the data and re-stream the entire stream collection, passing reset: true**:
-
-      def handle_event("filter", %{"filter" => filter}, socket) do
-        # re-fetch the messages based on the filter
-        messages = list_messages(filter)
-
-        {:noreply,
-         socket
-         |> assign(:messages_empty?, messages == [])
-         # reset the stream with the new messages
-         |> stream(:messages, messages, reset: true)}
-      end
-
-- LiveView streams *do not support counting or empty states*. If you need to display a count, you must track it using a separate assign. For empty states, you can use Tailwind classes:
-
-      <div id="tasks" phx-update="stream">
-        <div class="hidden only:block">No tasks yet</div>
-        <div :for={{id, task} <- @stream.tasks} id={id}>
-          {task.name}
-        </div>
-      </div>
-
-  The above only works if the empty state is the only HTML block alongside the stream for-comprehension.
-
-- When updating an assign that should change content inside any streamed item(s), you MUST re-stream the items
-  along with the updated assign:
-
-      def handle_event("edit_message", %{"message_id" => message_id}, socket) do
-        message = Chat.get_message!(message_id)
-        edit_form = to_form(Chat.change_message(message, %{content: message.content}))
-
-        # re-insert message so @editing_message_id toggle logic takes effect for that stream item
-        {:noreply,
-         socket
-         |> stream_insert(:messages, message)
-         |> assign(:editing_message_id, String.to_integer(message_id))
-         |> assign(:edit_form, edit_form)}
-      end
-
-  And in the template:
-
-      <div id="messages" phx-update="stream">
-        <div :for={{id, message} <- @streams.messages} id={id} class="flex group">
-          {message.username}
-          <%= if @editing_message_id == message.id do %>
-            <%!-- Edit mode --%>
-            <.form for={@edit_form} id="edit-form-#{message.id}" phx-submit="save_edit">
-              ...
-            </.form>
-          <% end %>
-        </div>
-      </div>
-
-- **Never** use the deprecated `phx-update="append"` or `phx-update="prepend"` for collections
-
-### LiveView JavaScript interop
-
-- Remember anytime you use `phx-hook="MyHook"` and that JS hook manages its own DOM, you **must** also set the `phx-update="ignore"` attribute
-- **Always** provide an unique DOM id alongside `phx-hook` otherwise a compiler error will be raised
-
-LiveView hooks come in two flavors, 1) colocated js hooks for "inline" scripts defined inside HEEx,
-and 2) external `phx-hook` annotations where JavaScript object literals are defined and passed to the `LiveSocket` constructor.
-
-#### Inline colocated js hooks
-
-**Never** write raw embedded `<script>` tags in heex as they are incompatible with LiveView.
-Instead, **always use a colocated js hook script tag (`:type={Phoenix.LiveView.ColocatedHook}`)
-when writing scripts inside the template**:
-
-    <input type="text" name="user[phone_number]" id="user-phone-number" phx-hook=".PhoneNumber" />
-    <script :type={Phoenix.LiveView.ColocatedHook} name=".PhoneNumber">
-      export default {
-        mounted() {
-          this.el.addEventListener("input", e => {
-            let match = this.el.value.replace(/\D/g, "").match(/^(\d{3})(\d{3})(\d{4})$/)
-            if(match) {
-              this.el.value = `${match[1]}-${match[2]}-${match[3]}`
-            }
-          })
-        }
-      }
-    </script>
-
-- colocated hooks are automatically integrated into the app.js bundle
-- colocated hooks names **MUST ALWAYS** start with a `.` prefix, i.e. `.PhoneNumber`
-
-#### External phx-hook
-
-External JS hooks (`<div id="myhook" phx-hook="MyHook">`) must be placed in `assets/js/` and passed to the
-LiveSocket constructor:
-
-    const MyHook = {
-      mounted() { ... }
-    }
-    let liveSocket = new LiveSocket("/live", Socket, {
-      hooks: { MyHook }
-    });
-
-#### Pushing events between client and server
-
-Use LiveView's `push_event/3` when you need to push events/data to the client for a phx-hook to handle.
-**Always** return or rebind the socket on `push_event/3` when pushing events:
-
-    # re-bind socket so we maintain event state to be pushed
-    socket = push_event(socket, "my_event", %{...})
-
-    # or return the modified socket directly:
-    def handle_event("some_event", _, socket) do
-      {:noreply, push_event(socket, "my_event", %{...})}
-    end
-
-Pushed events can then be picked up in a JS hook with `this.handleEvent`:
-
-    mounted() {
-      this.handleEvent("my_event", data => console.log("from server:", data));
-    }
-
-Clients can also push an event to the server and receive a reply with `this.pushEvent`:
-
-    mounted() {
-      this.el.addEventListener("click", e => {
-        this.pushEvent("my_event", { one: 1 }, reply => console.log("got reply from server:", reply));
-      })
-    }
-
-Where the server handled it via:
-
-    def handle_event("my_event", %{"one" => 1}, socket) do
-      {:reply, %{two: 2}, socket}
-    end
-
-### LiveView tests
-
-- `Phoenix.LiveViewTest` module and `LazyHTML` (included) for making your assertions
-- Form tests are driven by `Phoenix.LiveViewTest`'s `render_submit/2` and `render_change/2` functions
-- Come up with a step-by-step test plan that splits major test cases into small, isolated files. You may start with simpler tests that verify content exists, gradually add interaction tests
-- **Always reference the key element IDs you added in the LiveView templates in your tests** for `Phoenix.LiveViewTest` functions like `element/2`, `has_element/2`, selectors, etc
-- **Never** tests again raw HTML, **always** use `element/2`, `has_element/2`, and similar: `assert has_element?(view, "#my-form")`
-- Instead of relying on testing text content, which can change, favor testing for the presence of key elements
-- Focus on testing outcomes rather than implementation details
-- Be aware that `Phoenix.Component` functions like `<.form>` might produce different HTML than expected. Test against the output HTML structure, not your mental model of what you expect it to be
-- When facing test failures with element selectors, add debug statements to print the actual HTML, but use `LazyHTML` selectors to limit the output, ie:
-
-      html = render(view)
-      document = LazyHTML.from_fragment(html)
-      matches = LazyHTML.filter(document, "your-complex-selector")
-      IO.inspect(matches, label: "Matches")
-
-### Form handling
-
-#### Creating a form from params
-
-If you want to create a form based on `handle_event` params:
-
-    def handle_event("submitted", params, socket) do
-      {:noreply, assign(socket, form: to_form(params))}
-    end
-
-When you pass a map to `to_form/1`, it assumes said map contains the form params, which are expected to have string keys.
-
-You can also specify a name to nest the params:
-
-    def handle_event("submitted", %{"user" => user_params}, socket) do
-      {:noreply, assign(socket, form: to_form(user_params, as: :user))}
-    end
-
-#### Creating a form from changesets
-
-When using changesets, the underlying data, form params, and errors are retrieved from it. The `:as` option is automatically computed too. E.g. if you have a user schema:
-
-    defmodule MyApp.Users.User do
-      use Ecto.Schema
-      ...
-    end
-
-And then you create a changeset that you pass to `to_form`:
-
-    %MyApp.Users.User{}
-    |> Ecto.Changeset.change()
-    |> to_form()
-
-Once the form is submitted, the params will be available under `%{"user" => user_params}`.
-
-In the template, the form form assign can be passed to the `<.form>` function component:
-
-    <.form for={@form} id="todo-form" phx-change="validate" phx-submit="save">
-      <.input field={@form[:field]} type="text" />
-    </.form>
-
-Always give the form an explicit, unique DOM ID, like `id="todo-form"`.
-
-#### Avoiding form errors
-
-**Always** use a form assigned via `to_form/2` in the LiveView, and the `<.input>` component in the template. In the template **always access forms this**:
-
-    <%!-- ALWAYS do this (valid) --%>
-    <.form for={@form} id="my-form">
-      <.input field={@form[:field]} type="text" />
-    </.form>
-
-And **never** do this:
-
-    <%!-- NEVER do this (invalid) --%>
-    <.form for={@changeset} id="my-form">
-      <.input field={@changeset[:field]} type="text" />
-    </.form>
-
-- You are FORBIDDEN from accessing the changeset in the template as it will cause errors
-- **Never** use `<.form let={f} ...>` in the template, instead **always use `<.form for={@form} ...>`**, then drive all form references from the form assign as in `@form[:field]`. The UI should **always** be driven by a `to_form/2` assigned in the LiveView module that is derived from a changeset
+Project-local LiveView reminders:
+- Prefer `<.link navigate={...}>`, `<.link patch={...}>`, `push_navigate`, and `push_patch`; do not use deprecated redirect/patch helpers.
+- Avoid LiveComponents unless there is a clear state or reuse need.
+- When using `phx-hook`, always provide a stable DOM id; if the hook owns its DOM subtree, also use `phx-update="ignore"`.
+- Keep LiveView as the shell/transport boundary and avoid pushing rich client logic into HEEx or LiveView when React already owns that UI surface.
+- Use streams intentionally for large/interactive collections, and follow the proper `phx-update="stream"` + `@streams.*` structure.
+- Test LiveViews with `Phoenix.LiveViewTest`, stable element IDs, and outcome-oriented assertions.
 <!-- phoenix:liveview-end -->
 
 <!-- usage-rules-end -->
