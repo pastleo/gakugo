@@ -11,6 +11,7 @@ import {
 } from "../contexts/notebook-editor-context";
 import { NotebookEditorDragProvider } from "../contexts/notebook-editor-drag-context";
 import { NotebookEditorFocusProvider } from "../contexts/notebook-editor-focus-context";
+import { ToastProvider } from "../contexts/toast-context";
 import { PageCard } from "./notebook-editor/page-card";
 
 function NotebookEditorSurface() {
@@ -51,17 +52,19 @@ export function NotebookEditor({
   applyIntent,
 }: NotebookEditorProps) {
   return (
-    <NotebookEditorProvider
-      initialPages={initialPages}
-      addReactUpdateListener={addReactUpdateListener}
-      applyIntent={applyIntent}
-    >
-      <NotebookEditorFocusProvider>
-        <NotebookEditorDragProvider>
-          <NotebookEditorSurface />
-        </NotebookEditorDragProvider>
-      </NotebookEditorFocusProvider>
-    </NotebookEditorProvider>
+    <ToastProvider>
+      <NotebookEditorProvider
+        initialPages={initialPages}
+        addReactUpdateListener={addReactUpdateListener}
+        applyIntent={applyIntent}
+      >
+        <NotebookEditorFocusProvider>
+          <NotebookEditorDragProvider>
+            <NotebookEditorSurface />
+          </NotebookEditorDragProvider>
+        </NotebookEditorFocusProvider>
+      </NotebookEditorProvider>
+    </ToastProvider>
   );
 }
 

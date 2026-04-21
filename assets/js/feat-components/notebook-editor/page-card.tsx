@@ -75,7 +75,7 @@ export const PageCard = memo(function PageCard({
         <div className="flex items-center gap-1">
           <AddItemMenu page={page} />
           <PageActionsMenu
-            pageId={page.id}
+            page={page}
             canMoveUp={canMoveUp}
             canMoveDown={canMoveDown}
           />
