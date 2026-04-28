@@ -3,6 +3,18 @@ defmodule Gakugo.Anki.MarkdownTest do
 
   alias Gakugo.Anki.Markdown
 
+  describe "preview_summary/1" do
+    test "uses parsed markdown text for inline highlights" do
+      assert Markdown.preview_summary(
+               ~s|123 bold ==plain== ==<!-- {"textColor":"orange","backgroundColor":"rose"} -->aaa==|
+             ) == "123 bold plain aaa"
+    end
+
+    test "uses the first non-empty rendered block" do
+      assert Markdown.preview_summary("\n\n# **Title**\n\nbody") == "Title"
+    end
+  end
+
   describe "render_html/1" do
     test "does not render raw script tags" do
       html = Markdown.render_html("before\n\n<script>alert(1)</script>\n\nafter")
@@ -19,7 +31,15 @@ defmodule Gakugo.Anki.MarkdownTest do
       refute String.contains?(html, ~s(onclick=))
       refute String.contains?(html, "<div")
       refute String.contains?(html, "alert(1)")
-      assert html == "<!-- raw HTML omitted -->"
+      assert html == ""
+    end
+
+    test "sanitizes unsafe markdown link urls" do
+      html = Markdown.render_html(~s|[x](javascript:alert(1))|)
+
+      refute String.contains?(html, "javascript:")
+      refute String.contains?(html, "alert(1)")
+      assert String.contains?(html, ">x</a>") or String.contains?(html, ">x</p>")
     end
 
     test "renders normal markdown" do
@@ -39,6 +59,19 @@ defmodule Gakugo.Anki.MarkdownTest do
       assert String.contains?(html, "<tbody>")
       assert String.contains?(html, "<td>1</td>")
       assert String.contains?(html, "<td>2</td>")
+    end
+
+    test "renders inline highlight markdown" do
+      html =
+        Markdown.render_html(
+          ~s|before ==<!-- {"textColor":"orange","backgroundColor":"rose"} -->highlight== after|
+        )
+
+      assert String.contains?(html, "<mark")
+      assert String.contains?(html, ~s|data-text-color="orange"|)
+      assert String.contains?(html, ~s|data-background-color="rose"|)
+      assert String.contains?(html, ">highlight</mark>")
+      refute String.contains?(html, "==highlight==")
     end
   end
 end

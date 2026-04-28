@@ -26,7 +26,9 @@ import type {
   NotebookItem,
   NotebookPage,
 } from "../../../../contexts/notebook-editor-context";
+import { useMilkdownToolbar } from "./milkdown/toolbar";
 import { useFocusControl } from "./milkdown/use-focus-control";
+import { notebookHighlight } from "./milkdown/highlight";
 
 interface MilkdownItemEditorProps {
   page: NotebookPage;
@@ -47,6 +49,7 @@ function MilkdownItemEditorSurface(
   },
 ) {
   const [loading, get] = useInstance();
+  const milkdownToolbar = useMilkdownToolbar();
 
   const propsRef = useRef(props);
   propsRef.current = props;
@@ -93,8 +96,10 @@ function MilkdownItemEditorSurface(
       })
       .use(commonmark)
       .use(gfm)
+      .use(notebookHighlight)
       .use(collab)
-      .use(trailing),
+      .use(trailing)
+      .use(milkdownToolbar.plugin),
   );
 
   useEffect(() => {
@@ -147,7 +152,12 @@ function MilkdownItemEditorSurface(
     );
   }, [props.item.yStateAsUpdate]);
 
-  return <Milkdown />;
+  return (
+    <>
+      <Milkdown />
+      {milkdownToolbar.element}
+    </>
+  );
 }
 
 export const MilkdownItemEditor = memo(function MilkdownItemEditor(

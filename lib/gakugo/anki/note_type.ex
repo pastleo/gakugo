@@ -109,6 +109,16 @@ defmodule Gakugo.Anki.NoteType do
   .gakugo-node.has-background-color {
     background: var(--gakugo-bg-light);
   }
+  .gakugo-node mark {
+    border-radius: 0.32em;
+    padding: 0.02em 0.16em;
+  }
+  .gakugo-node mark[data-text-color] {
+    color: var(--gakugo-inline-text-light);
+  }
+  .gakugo-node mark[data-background-color] {
+    background-color: var(--gakugo-inline-bg-light);
+  }
   .gakugo-node.is-tree-focus {
     position: relative;
     isolation: isolate;
@@ -165,6 +175,12 @@ defmodule Gakugo.Anki.NoteType do
   }
   .nightMode .gakugo-node.has-background-color {
     background: var(--gakugo-bg-dark);
+  }
+  .nightMode .gakugo-node mark[data-text-color] {
+    color: var(--gakugo-inline-text-dark);
+  }
+  .nightMode .gakugo-node mark[data-background-color] {
+    background-color: var(--gakugo-inline-bg-dark);
   }
   .nightMode .gakugo-node.is-tree-focus {
     position: relative;

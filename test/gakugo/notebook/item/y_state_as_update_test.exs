@@ -38,6 +38,43 @@ defmodule Gakugo.Notebook.Item.YStateAsUpdateTest do
              "<paragraph>qwer<hardbreak isInline=\"false\"></hardbreak>asdf</paragraph>"
   end
 
+  test "hydrate_text encodes highlight markdown" do
+    rendered = hydrate_and_render("==highlight==")
+
+    assert rendered == "<paragraph><highlight>highlight</highlight></paragraph>"
+  end
+
+  test "hydrate_text encodes styled highlight markdown" do
+    rendered =
+      hydrate_and_render(~s(==<!-- {"textColor":"yellow","backgroundColor":"red"} -->highlight==))
+
+    assert rendered =~ ~s(<highlight)
+    assert rendered =~ ~s(textColor="yellow")
+    assert rendered =~ ~s(backgroundColor="red")
+    assert rendered =~ ~s(>highlight</highlight>)
+  end
+
+  test "hydrate_text preserves text-only highlight background reset" do
+    rendered =
+      hydrate_and_render(
+        ~s(==<!-- {"textColor":"yellow","backgroundColor":"none"} -->highlight==)
+      )
+
+    assert rendered =~ ~s(<highlight)
+    assert rendered =~ ~s(textColor="yellow")
+    assert rendered =~ ~s(backgroundColor="none")
+    assert rendered =~ ~s(>highlight</highlight>)
+  end
+
+  test "hydrate_text ignores invalid highlight colors" do
+    rendered =
+      hydrate_and_render(
+        ~s(==<!-- {"textColor":"nope","backgroundColor":"also-nope"} -->highlight==)
+      )
+
+    assert rendered == "<paragraph><highlight>highlight</highlight></paragraph>"
+  end
+
   test "new_item yStateAsUpdate renders as an empty paragraph" do
     encoded_update = Outline.new_item()["yStateAsUpdate"]
 

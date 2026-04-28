@@ -2,19 +2,12 @@ defmodule Gakugo.Anki.Markdown do
   @moduledoc false
 
   def render_html(markdown) when is_binary(markdown) do
-    MDEx.to_html!(markdown, plugins: [MDExGFM], render: [unsafe: false])
+    Gakugo.Notebook.Markdown.to_html(markdown)
   end
 
   def render_html(_), do: ""
 
-  def preview_summary(markdown) when is_binary(markdown) do
-    markdown
-    |> String.split("\n")
-    |> Enum.find("", &(String.trim(&1) != ""))
-    |> normalize_preview_line()
-  end
-
-  def preview_summary(_), do: ""
+  def preview_summary(markdown), do: Gakugo.Anki.Preview.summary(markdown)
 
   def wrap_occlusion(answer_html, current_answer?) when is_binary(answer_html) do
     occlusion_class =
@@ -51,18 +44,6 @@ defmodule Gakugo.Anki.Markdown do
     |> maybe_add_class(is_binary(node["textColor"]), "has-text-color")
     |> maybe_add_class(is_binary(node["backgroundColor"]), "has-background-color")
     |> Enum.join(" ")
-  end
-
-  defp normalize_preview_line(line) do
-    line
-    |> String.trim()
-    |> String.replace(~r/^[-*+]\s+/, "")
-    |> String.replace(~r/^#+\s+/, "")
-    |> String.replace(~r/`([^`]+)`/, "\\1")
-    |> String.replace(~r/[*_~]+/, "")
-    |> String.replace(~r/!\[[^\]]*\]\([^)]*\)/, "")
-    |> String.replace(~r/\[([^\]]+)\]\([^)]*\)/, "\\1")
-    |> String.replace(~r/\s+/, " ")
   end
 
   defp css_var(_name, nil), do: nil

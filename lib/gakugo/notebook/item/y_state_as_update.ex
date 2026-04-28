@@ -1,6 +1,8 @@
 defmodule Gakugo.Notebook.Item.YStateAsUpdate do
   @moduledoc false
 
+  alias Gakugo.Notebook.Markdown
+  alias Gakugo.Notebook.Markdown.HighlightNode
   alias MDEx
   alias Yex.Doc
   alias Yex.XmlElementPrelim
@@ -77,7 +79,7 @@ defmodule Gakugo.Notebook.Item.YStateAsUpdate do
   end
 
   defp parse_markdown(text) do
-    {:ok, MDEx.parse_document!(text, plugins: [MDExGFM])}
+    {:ok, Markdown.parse_document(text)}
   rescue
     _ -> :error
   end
@@ -287,6 +289,12 @@ defmodule Gakugo.Notebook.Item.YStateAsUpdate do
       %MDEx.LineBreak{} ->
         [XmlElementPrelim.new("hardbreak", [], %{"isInline" => false})]
 
+      %HighlightNode{nodes: children, text_color: text_color, background_color: background_color} ->
+        inline_children_to_prelims(
+          children,
+          Map.put(marks, "highlight", highlight_attrs(text_color, background_color))
+        )
+
       _ ->
         []
     end)
@@ -298,4 +306,13 @@ defmodule Gakugo.Notebook.Item.YStateAsUpdate do
     attrs = if map_size(marks) == 0, do: %{}, else: marks
     [XmlTextPrelim.from([%{insert: literal, attributes: attrs}])]
   end
+
+  defp highlight_attrs(text_color, background_color) do
+    %{}
+    |> maybe_put_attr("textColor", text_color)
+    |> maybe_put_attr("backgroundColor", background_color)
+  end
+
+  defp maybe_put_attr(map, _key, nil), do: map
+  defp maybe_put_attr(map, key, value), do: Map.put(map, key, value)
 end

@@ -1,10 +1,10 @@
 import React from "react";
+import { ColorRailPicker } from "../../../../components/color-rail-picker";
 import { useNotebookEditor } from "../../../../contexts/notebook-editor-context";
 import type {
   NotebookItem,
   NotebookPage,
 } from "../../../../contexts/notebook-editor-context";
-import { ColorGrid } from "./options-menu/color-grid";
 import { ParseGenerateDrawer } from "./options-menu/parse-generate-drawer";
 
 function renderItemBadge(item: NotebookItem) {
@@ -134,9 +134,9 @@ export function ItemEditorOptionsMenu({
           Answer
         </label>
 
-        <div className="mb-3 space-y-3 rounded-xl border border-base-300 bg-base-100/75 p-2">
-          <ColorGrid
-            title="Text color"
+        <div className="mb-3 flex min-w-0 gap-2 rounded-xl border border-base-300 bg-base-100/75 p-2">
+          <ColorRailPicker
+            label="Text"
             currentColor={item.textColor}
             role="foreground"
             onClear={() => void client.setItemTextColor(page, item.id, null)}
@@ -145,10 +145,8 @@ export function ItemEditorOptionsMenu({
             }
           />
 
-          <div className="h-px bg-base-300/70" />
-
-          <ColorGrid
-            title="Background"
+          <ColorRailPicker
+            label="Bg"
             currentColor={item.backgroundColor}
             role="background"
             onClear={() =>
