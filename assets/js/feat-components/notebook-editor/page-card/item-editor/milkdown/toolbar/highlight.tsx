@@ -137,23 +137,27 @@ export function HighlightToolbarControls({
   );
 
   return (
-    <div className="flex min-w-0 items-center gap-1.5 rounded-xl border border-base-300/70 bg-base-100/80 p-1">
+    <div className="flex min-w-0 flex-1 items-center gap-1">
       <ColorRailPicker
-        label="Text"
+        label="Text color"
         role="foreground"
         currentColor={attrs.textColor}
         onClear={() => updateAttrs({ textColor: null })}
         onSelect={(color) => updateAttrs({ textColor: color })}
-        className="min-w-0 flex-1 border-transparent bg-transparent"
+        clearLabel="default"
+        previewBackgroundColor={visibleNotebookColor(attrs.backgroundColor)}
+        className="min-w-0 flex-1 border-transparent bg-transparent px-0.5 py-0"
       />
 
       <ColorRailPicker
-        label="Bg"
+        label="Background color"
         role="background"
         currentColor={visibleNotebookColor(attrs.backgroundColor)}
         onClear={() => updateAttrs({ backgroundColor: "none" })}
         onSelect={(color) => updateAttrs({ backgroundColor: color })}
-        className="min-w-0 flex-1 border-transparent bg-transparent"
+        clearLabel="clear"
+        previewTextColor={attrs.textColor}
+        className="min-w-0 flex-1 border-transparent bg-transparent px-0.5 py-0"
       />
     </div>
   );

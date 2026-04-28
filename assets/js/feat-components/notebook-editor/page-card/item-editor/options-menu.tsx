@@ -136,17 +136,18 @@ export function ItemEditorOptionsMenu({
 
         <div className="mb-3 flex min-w-0 gap-2 rounded-xl border border-base-300 bg-base-100/75 p-2">
           <ColorRailPicker
-            label="Text"
+            label="Text color"
             currentColor={item.textColor}
             role="foreground"
             onClear={() => void client.setItemTextColor(page, item.id, null)}
             onSelect={(color) =>
               void client.setItemTextColor(page, item.id, color)
             }
+            previewBackgroundColor={item.backgroundColor}
           />
 
           <ColorRailPicker
-            label="Bg"
+            label="Background color"
             currentColor={item.backgroundColor}
             role="background"
             onClear={() =>
@@ -155,6 +156,8 @@ export function ItemEditorOptionsMenu({
             onSelect={(color) =>
               void client.setItemBackgroundColor(page, item.id, color)
             }
+            clearLabel="clear"
+            previewTextColor={item.textColor}
           />
         </div>
 

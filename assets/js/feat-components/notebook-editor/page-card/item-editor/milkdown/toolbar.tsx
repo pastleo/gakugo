@@ -208,12 +208,12 @@ export function MilkdownToolbar({
 
   return createPortal(
     <div
-      className="pointer-events-auto flex w-[80vw] max-w-[400px] flex-col gap-1.5 rounded-2xl border border-base-300 bg-base-100/95 p-1.5 shadow-lg shadow-base-300/30 backdrop-blur"
+      className="pointer-events-auto flex w-[80vw] max-w-[400px] min-w-0 items-center gap-1 rounded-2xl border border-base-300 bg-base-100/95 p-1.5 shadow-lg shadow-base-300/30 backdrop-blur"
       onMouseDownCapture={(event) => {
         event.preventDefault();
       }}
     >
-      <div className="flex items-center gap-1 rounded-full border border-base-300/70 bg-base-100/80 p-1">
+      <div className="flex shrink-0 items-center gap-1 rounded-full border border-base-300/70 bg-base-100/80 p-1">
         {tools.map((tool) => (
           <button
             key={tool.id}
@@ -373,7 +373,9 @@ class MilkdownToolbarView implements PluginView {
     this.#tooltipProvider = new TooltipProvider({
       content,
       debounce: 20,
-      offset: 10,
+      offset: 18,
+      shift: { padding: 8 },
+      floatingUIOptions: { placement: "bottom" },
       shouldShow(currentView: EditorView) {
         return shouldShowToolbar(currentView, content);
       },

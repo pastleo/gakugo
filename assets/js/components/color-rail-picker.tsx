@@ -1,7 +1,6 @@
 import React from "react";
 import {
   NOTEBOOK_COLOR_PALETTE,
-  notebookColorSwatchClass,
   type NotebookColorName,
   type NotebookColorRole,
 } from "../utils/notebook-colors";
@@ -13,6 +12,44 @@ interface ColorRailPickerProps {
   onClear: () => void;
   onSelect: (color: NotebookColorName) => void;
   className?: string;
+  clearLabel?: string;
+  previewTextColor?: NotebookColorName | null | undefined;
+  previewBackgroundColor?: NotebookColorName | null | undefined;
+}
+
+function notebookColorCssVar(name: NotebookColorName, role: NotebookColorRole) {
+  return `var(--gakugo-notebook-color-${name}-${role})`;
+}
+
+function ColorPreviewTile({
+  role,
+  color,
+  previewTextColor,
+  previewBackgroundColor,
+}: {
+  role: NotebookColorRole;
+  color?: NotebookColorName | null;
+  previewTextColor?: NotebookColorName | null;
+  previewBackgroundColor?: NotebookColorName | null;
+}) {
+  const textColor = role === "foreground" ? color : previewTextColor;
+  const backgroundColor =
+    role === "background" ? color : previewBackgroundColor;
+  const style: React.CSSProperties = {
+    color: textColor ? notebookColorCssVar(textColor, "foreground") : undefined,
+    backgroundColor: backgroundColor
+      ? notebookColorCssVar(backgroundColor, "background")
+      : undefined,
+  };
+
+  return (
+    <span
+      className="inline-flex size-6 items-center justify-center rounded-lg border border-base-content/10 bg-base-100 text-[13px] font-black leading-none text-base-content shadow-sm"
+      style={style}
+    >
+      A
+    </span>
+  );
 }
 
 export function ColorRailPicker({
@@ -22,8 +59,24 @@ export function ColorRailPicker({
   onClear,
   onSelect,
   className,
+  clearLabel = "default",
+  previewTextColor,
+  previewBackgroundColor,
 }: ColorRailPickerProps) {
   const railRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const rail = railRef.current;
+    const selectedButton = rail?.querySelector<HTMLElement>(
+      '[data-selected="true"]',
+    );
+
+    selectedButton?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }, [currentColor]);
 
   React.useEffect(() => {
     const rail = railRef.current;
@@ -51,10 +104,6 @@ export function ColorRailPicker({
         className ?? "",
       ].join(" ")}
     >
-      <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-base-content/55">
-        {label}
-      </span>
-
       <div className="relative min-w-0 flex-1">
         <div
           ref={railRef}
@@ -63,18 +112,22 @@ export function ColorRailPicker({
           <button
             type="button"
             aria-pressed={!currentColor}
-            aria-label={`${label}: default`}
-            title="Default"
+            aria-label={`${label}: ${clearLabel}`}
+            title={`${label}: ${clearLabel}`}
+            data-selected={!currentColor ? "true" : undefined}
             onClick={onClear}
             className={[
-              "relative inline-flex size-6 shrink-0 items-center justify-center rounded-full border bg-base-100 transition",
+              "relative inline-flex size-7 shrink-0 items-center justify-center rounded-xl border bg-base-100 transition",
               !currentColor
                 ? "border-primary ring-2 ring-primary/45 ring-offset-1 ring-offset-base-100"
                 : "border-base-300 hover:border-base-content/25 hover:bg-base-200/80",
             ].join(" ")}
           >
-            <span className="size-3.5 rounded-full border border-base-content/15 shadow-sm" />
-            <span className="absolute h-4 w-0.5 rotate-45 rounded-full bg-error" />
+            <ColorPreviewTile
+              role={role}
+              previewTextColor={previewTextColor}
+              previewBackgroundColor={previewBackgroundColor}
+            />
           </button>
 
           {NOTEBOOK_COLOR_PALETTE.map((color) => {
@@ -87,20 +140,21 @@ export function ColorRailPicker({
                 type="button"
                 aria-pressed={selected}
                 aria-label={`${label}: ${color.label}`}
-                title={color.label}
+                title={`${label}: ${color.label}`}
+                data-selected={selected ? "true" : undefined}
                 onClick={() => onSelect(colorName)}
                 className={[
-                  "inline-flex size-6 shrink-0 items-center justify-center rounded-full border transition",
+                  "inline-flex size-7 shrink-0 items-center justify-center rounded-xl border transition",
                   selected
                     ? "border-primary bg-base-100 ring-2 ring-primary/45 ring-offset-1 ring-offset-base-100"
                     : "border-base-300 hover:border-base-content/25 hover:bg-base-200/80",
                 ].join(" ")}
               >
-                <span
-                  className={[
-                    "size-3.5 rounded-full border border-base-content/10 shadow-sm",
-                    notebookColorSwatchClass(colorName, role),
-                  ].join(" ")}
+                <ColorPreviewTile
+                  color={colorName}
+                  role={role}
+                  previewTextColor={previewTextColor}
+                  previewBackgroundColor={previewBackgroundColor}
                 />
               </button>
             );
