@@ -21,6 +21,14 @@ function notebookColorCssVar(name: NotebookColorName, role: NotebookColorRole) {
   return `var(--gakugo-notebook-color-${name}-${role})`;
 }
 
+function isElementVisible(element: HTMLElement) {
+  if (!element.isConnected) return false;
+  if (element.getClientRects().length === 0) return false;
+
+  const { visibility } = window.getComputedStyle(element);
+  return visibility !== "hidden" && visibility !== "collapse";
+}
+
 function ColorPreviewTile({
   role,
   color,
@@ -71,10 +79,17 @@ export function ColorRailPicker({
       '[data-selected="true"]',
     );
 
-    selectedButton?.scrollIntoView({
+    if (!rail || !selectedButton) return;
+    if (!isElementVisible(rail) || !isElementVisible(selectedButton)) return;
+
+    const railRect = rail.getBoundingClientRect();
+    const selectedRect = selectedButton.getBoundingClientRect();
+    const selectedCenter =
+      selectedRect.left - railRect.left + selectedRect.width / 2;
+
+    rail.scrollTo({
       behavior: "smooth",
-      block: "nearest",
-      inline: "center",
+      left: rail.scrollLeft + selectedCenter - rail.clientWidth / 2,
     });
   }, [currentColor]);
 
