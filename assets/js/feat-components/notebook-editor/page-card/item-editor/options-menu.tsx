@@ -5,7 +5,7 @@ import type {
   NotebookItem,
   NotebookPage,
 } from "../../../../contexts/notebook-editor-context";
-import { ParseGenerateDrawer } from "./options-menu/parse-generate-drawer";
+import { PromptingDropdown } from "./options-menu/prompting-dropdown";
 
 function renderItemBadge(item: NotebookItem) {
   const baseClass =
@@ -62,7 +62,6 @@ export function ItemEditorOptionsMenu({
   buttonProps,
 }: OptionsMenuProps) {
   const { client } = useNotebookEditor();
-  const [parseGenerateOpen, setParseGenerateOpen] = React.useState(false);
 
   return (
     <div className="focus-menu relative">
@@ -85,7 +84,7 @@ export function ItemEditorOptionsMenu({
         tabIndex={0}
         className="focus-menu-panel absolute left-8 top-0 z-20 ml-2 w-[25rem] origin-top-left rounded-xl border border-base-300 bg-base-100 p-3 shadow-xl transition duration-150 ease-out"
       >
-        <div className="mb-3 grid grid-cols-2 gap-2">
+        <div className="mb-3 grid grid-cols-3 gap-2">
           <button
             type="button"
             onClick={() => void client.indentSubtree(page, item.id, item.text)}
@@ -103,36 +102,39 @@ export function ItemEditorOptionsMenu({
           >
             ⇤ Unindent
           </button>
+
+          <button
+            type="button"
+            onClick={() => void client.removeItem(page, item.id)}
+            className="inline-flex items-center justify-center gap-1 rounded-md border border-error/35 bg-error/10 px-2 py-1 text-xs font-semibold text-error transition hover:bg-error/15"
+          >
+            ✕ Delete
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setParseGenerateOpen(true)}
-          className="mb-3 inline-flex w-full items-center justify-center gap-1 rounded-md border border-base-300 bg-base-200/35 px-2 py-1 text-xs font-semibold text-base-content transition hover:bg-base-200"
-          title="Open parse and generate actions"
-        >
-          Parse / Generate
-        </button>
+        <div className="mb-3 flex items-center gap-4">
+          <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-base-content">
+            <input
+              type="checkbox"
+              checked={item.flashcard}
+              onChange={() =>
+                void client.toggleFlag(page, item.id, "flashcard")
+              }
+              className="checkbox checkbox-xs"
+            />
+            Flashcard
+          </label>
 
-        <label className="mb-2 flex cursor-pointer items-center gap-2 text-xs font-medium text-base-content">
-          <input
-            type="checkbox"
-            checked={item.flashcard}
-            onChange={() => void client.toggleFlag(page, item.id, "flashcard")}
-            className="checkbox checkbox-xs"
-          />
-          Flashcard
-        </label>
-
-        <label className="mb-3 flex cursor-pointer items-center gap-2 text-xs font-medium text-base-content">
-          <input
-            type="checkbox"
-            checked={item.answer}
-            onChange={() => void client.toggleFlag(page, item.id, "answer")}
-            className="checkbox checkbox-xs"
-          />
-          Answer
-        </label>
+          <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-base-content">
+            <input
+              type="checkbox"
+              checked={item.answer}
+              onChange={() => void client.toggleFlag(page, item.id, "answer")}
+              className="checkbox checkbox-xs"
+            />
+            Answer
+          </label>
+        </div>
 
         <div className="mb-3 flex min-w-0 gap-2 rounded-xl border border-base-300 bg-base-100/75 p-2">
           <ColorRailPicker
@@ -161,21 +163,8 @@ export function ItemEditorOptionsMenu({
           />
         </div>
 
-        <button
-          type="button"
-          onClick={() => void client.removeItem(page, item.id)}
-          className="inline-flex w-full items-center justify-center gap-1 rounded-md border border-error/35 bg-error/10 px-2 py-1 text-xs font-semibold text-error transition hover:bg-error/15"
-        >
-          ✕ Delete
-        </button>
+        <PromptingDropdown page={page} item={item} />
       </div>
-
-      <ParseGenerateDrawer
-        open={parseGenerateOpen}
-        page={page}
-        item={item}
-        onClose={() => setParseGenerateOpen(false)}
-      />
     </div>
   );
 }

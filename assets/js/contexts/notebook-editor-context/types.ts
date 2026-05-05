@@ -7,6 +7,24 @@ export type NotebookUnitId = number;
 export type NotebookPageId = number;
 export type NotebookItemId = string;
 
+export type PromptingMode = "parse_as_items" | "parse_as_flashcards";
+export type PromptingInsertionMode = "next_siblings" | "children";
+export type PromptingAnswerMode =
+  | "first_depth"
+  | "non_first_depth"
+  | "no_answer";
+
+export type NotebookItemPrompting =
+  | {
+      mode: "parse_as_items";
+      insertionMode: PromptingInsertionMode;
+    }
+  | {
+      mode: "parse_as_flashcards";
+      insertionMode: PromptingInsertionMode;
+      answerMode: PromptingAnswerMode;
+    };
+
 export interface NotebookItem {
   id: NotebookItemId;
   text: string;
@@ -16,6 +34,7 @@ export interface NotebookItem {
   yStateAsUpdate: string;
   textColor?: NotebookColorName | null;
   backgroundColor?: NotebookColorName | null;
+  prompting?: NotebookItemPrompting | null;
 }
 
 export interface NotebookPage {
@@ -64,6 +83,7 @@ export type PageContentAction =
   | "set_text"
   | "set_item_text_color"
   | "set_item_background_color"
+  | "set_prompting"
   | "text_collab_update"
   | "toggle_flag"
   | "insert_above"
@@ -150,6 +170,11 @@ export interface NotebookEditorClient {
     page: NotebookPage,
     itemId: NotebookItemId,
     color: NotebookColorName | null,
+  ) => Promise<ApplyIntentReply>;
+  setPrompting: (
+    page: NotebookPage,
+    itemId: NotebookItemId,
+    prompting: NotebookItemPrompting | null,
   ) => Promise<ApplyIntentReply>;
   toggleFlag: (
     page: NotebookPage,

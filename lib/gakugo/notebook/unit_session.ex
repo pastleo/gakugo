@@ -307,9 +307,9 @@ defmodule Gakugo.Notebook.UnitSession do
          {:ok, page_id} <- target_page_id(intent),
          page when not is_nil(page) <- find_runtime_page(runtime_state.unit, page_id) do
       editor_items =
-        if action in ["text_collab_update", "set_text"],
+        if action in ["text_collab_update", "set_text", "set_prompting"],
           do: page.items,
-          else: intent_nodes(intent)
+          else: preserve_runtime_item_prompting(intent_nodes(intent), page.items)
 
       case Editor.apply(editor_items, command) do
         {:ok, result} ->
@@ -1084,6 +1084,22 @@ defmodule Gakugo.Notebook.UnitSession do
   defp intent_nodes(intent),
     do: Map.get(intent, "nodes", Map.get(intent_payload(intent), "nodes", []))
 
+  defp preserve_runtime_item_prompting(items, runtime_items) do
+    runtime_prompting_by_id =
+      runtime_items
+      |> Outline.normalize_items()
+      |> Map.new(fn item -> {item["id"], Map.get(item, "prompting")} end)
+
+    items
+    |> Outline.normalize_items()
+    |> Enum.map(fn item ->
+      case Map.fetch(runtime_prompting_by_id, item["id"]) do
+        {:ok, prompting} -> Map.put(item, "prompting", prompting)
+        :error -> item
+      end
+    end)
+  end
+
   defp page_content_command(%{"action" => "set_text"} = intent) do
     {:ok,
      {:set_text, editor_target_from_intent(intent), Map.get(intent_payload(intent), "text", "")},
@@ -1101,6 +1117,21 @@ defmodule Gakugo.Notebook.UnitSession do
     with {:ok, color} <- notebook_color_payload_value(intent_payload(intent)) do
       {:ok, {:set_item_background_color, editor_target_from_intent(intent), color},
        "set_item_background_color"}
+    end
+  end
+
+  defp page_content_command(%{"action" => "set_prompting"} = intent) do
+    payload = intent_payload(intent)
+
+    case Map.get(payload, "prompting") do
+      nil ->
+        {:ok, {:set_prompting, editor_target_from_intent(intent), nil}, "set_prompting"}
+
+      prompting when is_map(prompting) ->
+        {:ok, {:set_prompting, editor_target_from_intent(intent), prompting}, "set_prompting"}
+
+      _ ->
+        :error
     end
   end
 

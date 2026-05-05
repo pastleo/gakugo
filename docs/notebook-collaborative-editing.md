@@ -81,6 +81,7 @@ Current protocol direction for editable notebook items:
   "depth": 0,
   "flashcard": false,
   "answer": false,
+  "prompting": null,
   "yStateAsUpdate": "<opaque serialized editor state>"
 }
 ```
@@ -90,6 +91,25 @@ Key rules:
 - `yStateAsUpdate` is an opaque editor snapshot blob produced by the server/runtime hydration path or by the Milkdown/Yjs client on edits
 - the server stores and rebroadcasts `yStateAsUpdate` but should not interpret editor internals from it
 - `yStateAsUpdate` is expected to be non-null everywhere in the app
+- `prompting` is durable collaborative item state for the inline item action composer; it is not local-only UI state
+- `prompting` does not carry prompt text; the item `text` / Milkdown content remains the prompt/source body
+
+Current prompting shape:
+
+```json
+{
+  "mode": "parse_as_items | parse_as_flashcards",
+  "insertionMode": "next_siblings | children",
+  "answerMode": "first_depth | non_first_depth | no_answer"
+}
+```
+
+Prompting rules:
+- `prompting` may be `null`
+- `parse_as_items` uses `mode` and `insertionMode`
+- `parse_as_flashcards` uses `mode`, `insertionMode`, and `answerMode`
+- collaboration semantics are last-write-wins for the whole prompting object
+- because some page-content actions still use client-sent `nodes`, server handling must preserve current runtime `prompting` values for matching item ids when applying those stale-node actions
 
 ## Text editing actions
 
@@ -136,6 +156,32 @@ Server-side direction:
 - store `item.yStateAsUpdate = payload.y_state_as_update`
 - do not interpret, merge, or reconstruct editor internals on the server
 
+### `set_prompting`
+
+Collaborative inline item action composer state.
+This is persisted on the item and shared through normal page updates.
+
+```json
+{
+  "scope": "page_content",
+  "action": "set_prompting",
+  "target": { "page_id": 456, "item_id": "..." },
+  "payload": {
+    "prompting": {
+      "mode": "parse_as_flashcards",
+      "insertionMode": "children",
+      "answerMode": "non_first_depth"
+    }
+  }
+}
+```
+
+Server-side direction:
+- apply against current runtime page items, not client-sent `nodes`
+- normalize invalid/partial prompting options to the supported shape
+- use `payload.prompting = null` to close prompting mode
+- do not add `prompting.prompt`; the item text/editor content is the prompt/source
+
 ## Data structures
 
 ### Intent
@@ -172,6 +218,7 @@ Intent is what the client wants to do.
 Notes:
 - React constructs these payloads in `assets/js/notebook-editor.tsx` and the rebuilt notebook editor tree under `assets/js/feat-components/notebook-editor*`
 - `nodes` still appears in some `page_content` intents because current page-content application still uses it
+- when using client-sent `nodes`, preserve current runtime `item.prompting` by item id so stale intents do not wipe newer prompting state
 - `version.source` is used in some move flows
 - runtime page identity is just `page_id`
 - runtime page version is stored directly on each runtime page as `page.version`
@@ -186,6 +233,7 @@ Current `handle_intent` scope/action pairs:
 
 - `page_content`
   - `set_text` — plain text replacement; rebuilds opaque editor state from text on the server
+  - `set_prompting` — durable inline item action composer state; applied against current runtime items
   - `text_collab_update` — stores opaque editor state plus required text projection
   - `toggle_flag`
   - `insert_above`

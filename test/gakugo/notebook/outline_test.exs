@@ -20,10 +20,42 @@ defmodule Gakugo.Notebook.OutlineTest do
     assert is_binary(item["yStateAsUpdate"])
   end
 
+  test "normalize_items preserves prompting state" do
+    [item] =
+      Outline.normalize_items([
+        %{
+          "id" => "node-1",
+          "prompting" => %{
+            "mode" => "parse_as_flashcards",
+            "insertionMode" => "children",
+            "answerMode" => "no_answer"
+          }
+        }
+      ])
+
+    assert item["prompting"] == %{
+             "mode" => "parse_as_flashcards",
+             "insertionMode" => "children",
+             "answerMode" => "no_answer"
+           }
+  end
+
   test "db_update_item_attrs omits runtime-only editor state" do
     [item] = Outline.normalize_items([%{"id" => "node-1", "text" => "root", "depth" => 1}])
 
     refute Map.has_key?(Outline.db_update_item_attrs(item), "yStateAsUpdate")
+  end
+
+  test "db_update_item_attrs includes prompting state" do
+    [item] =
+      Outline.normalize_items([
+        %{"id" => "node-1", "prompting" => %{"mode" => "parse_as_items"}}
+      ])
+
+    assert Outline.db_update_item_attrs(item)["prompting"] == %{
+             "mode" => "parse_as_items",
+             "insertionMode" => "next_siblings"
+           }
   end
 
   test "item_depth reads atom-keyed depth fields" do

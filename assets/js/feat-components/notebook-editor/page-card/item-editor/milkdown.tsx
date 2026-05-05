@@ -11,6 +11,7 @@ import {
   collab,
   collabServiceCtx,
 } from "@milkdown/plugin-collab";
+import { clipboard } from "@milkdown/plugin-clipboard";
 import { trailing } from "@milkdown/kit/plugin/trailing";
 import { commonmark } from "@milkdown/kit/preset/commonmark";
 import { gfm } from "@milkdown/kit/preset/gfm";
@@ -97,6 +98,7 @@ function MilkdownItemEditorSurface(
       .use(commonmark)
       .use(gfm)
       .use(notebookHighlight)
+      .use(clipboard)
       .use(collab)
       .use(trailing)
       .use(milkdownToolbar.plugin),

@@ -12,6 +12,7 @@ import { isDebugEnabled } from "../../../utils/debug";
 import { DebugSetTextButton } from "./item-editor/debug-set-text-btn";
 import { MilkdownItemEditor } from "./item-editor/milkdown";
 import { ItemEditorOptionsMenu } from "./item-editor/options-menu";
+import { ItemEditorPromptingPanel } from "./item-editor/prompting-panel";
 import { useItemEditorDrag } from "./item-editor/use-item-editor-drag";
 
 interface ItemEditorProps {
@@ -93,6 +94,7 @@ export const ItemEditor = memo(function ItemEditor({
                   client.textCollabUpdate(page, item.id, text, yStateAsUpdate);
                 }}
               />
+              <ItemEditorPromptingPanel page={page} item={item} />
             </div>
 
             {showDebugSetTextButton ? (

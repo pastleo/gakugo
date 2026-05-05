@@ -83,6 +83,32 @@ defmodule Gakugo.Notebook.EditorTest do
     assert updated_item["yStateAsUpdate"] == "opaque-state"
   end
 
+  test "set_prompting updates target item prompting state" do
+    [item] = Outline.normalize_items([make_node("old", "id-old", 0)])
+
+    assert {:ok, %{nodes: prompted_nodes, focus_path: nil}} =
+             Editor.apply(
+               [item],
+               {:set_prompting, %{"item_id" => "id-old"},
+                %{
+                  "mode" => "parse_as_flashcards",
+                  "insertionMode" => "children",
+                  "answerMode" => "non_first_depth"
+                }}
+             )
+
+    assert Outline.get_item(prompted_nodes, [0])["prompting"] == %{
+             "mode" => "parse_as_flashcards",
+             "insertionMode" => "children",
+             "answerMode" => "non_first_depth"
+           }
+
+    assert {:ok, %{nodes: cleared_nodes, focus_path: nil}} =
+             Editor.apply(prompted_nodes, {:set_prompting, %{"item_id" => "id-old"}, nil})
+
+    assert Outline.get_item(cleared_nodes, [0])["prompting"] == nil
+  end
+
   test "item_indent and item_outdent only affect selected item" do
     nodes = [make_node("A", "id-a", 0), make_node("B", "id-b", 0), make_node("C", "id-c", 1)]
 

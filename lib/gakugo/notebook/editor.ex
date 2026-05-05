@@ -36,6 +36,16 @@ defmodule Gakugo.Notebook.Editor do
     end
   end
 
+  def apply(items, {:set_prompting, target, prompting}) do
+    with {:ok, index} <- resolve_target_index(items, target),
+         normalized_prompting <-
+           Outline.normalize_items([%{"prompting" => prompting}]) |> hd() |> Map.get("prompting"),
+         {:ok, next_items} <-
+           update_item(items, index, &Map.put(&1, "prompting", normalized_prompting)) do
+      {:ok, %{nodes: next_items, focus_path: nil}}
+    end
+  end
+
   def apply(items, {:text_collab_update, target, payload}) do
     with {:ok, index} <- resolve_target_index(items, target),
          normalized_items <- Outline.normalize_items(items),
@@ -340,7 +350,8 @@ defmodule Gakugo.Notebook.Editor do
           "answer",
           "front",
           "textColor",
-          "backgroundColor"
+          "backgroundColor",
+          "prompting"
         ])
       )
       |> normalize_legacy_item_fields()

@@ -12,6 +12,7 @@ defmodule Gakugo.Notebook.Outline do
       "answer" => false,
       "textColor" => nil,
       "backgroundColor" => nil,
+      "prompting" => nil,
       "yStateAsUpdate" => YStateAsUpdate.empty_y_state_as_update()
     }
   end
@@ -46,7 +47,16 @@ defmodule Gakugo.Notebook.Outline do
   def db_update_item_attrs(item) when is_map(item) do
     item
     |> normalize_item()
-    |> Map.take(["id", "text", "depth", "flashcard", "answer", "textColor", "backgroundColor"])
+    |> Map.take([
+      "id",
+      "text",
+      "depth",
+      "flashcard",
+      "answer",
+      "textColor",
+      "backgroundColor",
+      "prompting"
+    ])
   end
 
   def db_update_item_attrs(_item), do: db_update_item_attrs(new_item())
@@ -270,6 +280,7 @@ defmodule Gakugo.Notebook.Outline do
       "textColor" => normalize_color(Map.get(item, "textColor", Map.get(item, :textColor))),
       "backgroundColor" =>
         normalize_color(Map.get(item, "backgroundColor", Map.get(item, :backgroundColor))),
+      "prompting" => normalize_prompting(Map.get(item, "prompting", Map.get(item, :prompting))),
       "yStateAsUpdate" => normalize_y_state_as_update(item)
     }
   end
@@ -299,6 +310,48 @@ defmodule Gakugo.Notebook.Outline do
   end
 
   defp normalize_color(_), do: nil
+
+  defp normalize_prompting(nil), do: nil
+
+  defp normalize_prompting(%{} = prompting) do
+    prompting = Map.new(prompting, fn {key, value} -> {to_string(key), value} end)
+    insertion_mode = normalize_prompting_insertion_mode(prompting)
+
+    case Map.get(prompting, "mode") do
+      "parse_as_items" ->
+        %{
+          "mode" => "parse_as_items",
+          "insertionMode" => insertion_mode
+        }
+
+      "parse_as_flashcards" ->
+        %{
+          "mode" => "parse_as_flashcards",
+          "insertionMode" => insertion_mode,
+          "answerMode" => normalize_prompting_answer_mode(prompting)
+        }
+
+      _ ->
+        nil
+    end
+  end
+
+  defp normalize_prompting(_), do: nil
+
+  defp normalize_prompting_insertion_mode(prompting) do
+    case Map.get(prompting, "insertionMode", Map.get(prompting, "insertion_mode")) do
+      "children" -> "children"
+      _ -> "next_siblings"
+    end
+  end
+
+  defp normalize_prompting_answer_mode(prompting) do
+    case Map.get(prompting, "answerMode", Map.get(prompting, "answer_mode")) do
+      "non_first_depth" -> "non_first_depth"
+      "no_answer" -> "no_answer"
+      _ -> "first_depth"
+    end
+  end
 
   defp normalize_depth(depth) when is_integer(depth) and depth >= 0, do: depth
 

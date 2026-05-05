@@ -110,6 +110,51 @@ defmodule Gakugo.Notebook.UnitSessionTest do
     assert Enum.map(snapshot_page.items, & &1["depth"]) == [0, 1, 2, 2]
   end
 
+  test "client-node page actions preserve current runtime prompting state" do
+    unit = unit_fixture()
+    page = hd(Db.get_unit!(unit.id).pages)
+
+    {:ok, page} =
+      Db.update_page(page, %{
+        "title" => page.title,
+        "items" => [
+          %{"id" => "id-a", "text" => "A", "depth" => 0, "flashcard" => false, "answer" => false}
+        ]
+      })
+
+    assert {:ok, _result} =
+             UnitSession.apply_intent(unit.id, "actor-1", %{
+               "scope" => "page_content",
+               "action" => "set_prompting",
+               "target" => %{"page_id" => page.id, "item_id" => "id-a"},
+               "version" => %{"local" => 0},
+               "payload" => %{
+                 "prompting" => %{"mode" => "parse_as_items", "insertionMode" => "children"}
+               }
+             })
+
+    stale_nodes = [
+      %{"id" => "id-a", "text" => "A", "depth" => 0, "flashcard" => false, "answer" => false}
+    ]
+
+    assert {:ok, %{kind: "page_updated", page: %{items: reply_items}}} =
+             UnitSession.apply_intent(unit.id, "actor-2", %{
+               "scope" => "page_content",
+               "action" => "toggle_flag",
+               "target" => %{"page_id" => page.id, "item_id" => "id-a"},
+               "version" => %{"local" => 0},
+               "nodes" => stale_nodes,
+               "payload" => %{"flag" => "flashcard"}
+             })
+
+    assert hd(reply_items)["flashcard"] == true
+
+    assert hd(reply_items)["prompting"] == %{
+             "mode" => "parse_as_items",
+             "insertionMode" => "children"
+           }
+  end
+
   test "insert_child_below inserts a child through canonical intent" do
     unit = unit_fixture()
     page = hd(Db.get_unit!(unit.id).pages)

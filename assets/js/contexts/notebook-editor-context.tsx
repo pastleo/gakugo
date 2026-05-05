@@ -171,6 +171,8 @@ export function NotebookEditorProvider({
         send(
           setItemColorIntent(page, itemId, "set_item_background_color", color),
         ),
+      setPrompting: (page, itemId, prompting) =>
+        sendPageAction(page, "set_prompting", itemId, { prompting }),
       toggleFlag: (page, itemId, flag) =>
         sendPageAction(page, "toggle_flag", itemId, { flag }),
       insertAbove: (page, itemId, text) =>
@@ -285,11 +287,15 @@ export type {
   NotebookColorName,
   NotebookItem,
   NotebookItemId,
+  NotebookItemPrompting,
   NotebookPage,
   NotebookPageId,
   NotebookUnitId,
   PageContentAction,
   PageContentIntentArgs,
+  PromptingAnswerMode,
+  PromptingInsertionMode,
+  PromptingMode,
   ReactUpdateListener,
   RootInsertPosition,
 } from "./notebook-editor-context/types";
