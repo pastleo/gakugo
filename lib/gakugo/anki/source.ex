@@ -15,7 +15,7 @@ defmodule Gakugo.Anki.Source do
         subtree_entries = descendant_entries(entries, entry)
 
         %{
-          id: notebook_identifier(unit.id, page.id, entry.path),
+          id: entry.node["id"],
           unit: unit,
           page: page,
           entries: entries,
@@ -70,10 +70,5 @@ defmodule Gakugo.Anki.Source do
       |> Enum.map(& &1.path)
 
     MapSet.new(entry_answers ++ descendant_answers)
-  end
-
-  defp notebook_identifier(unit_id, page_id, path) do
-    path_key = Enum.join(path, "-")
-    "unit-#{unit_id}-page-#{page_id}-path-#{path_key}"
   end
 end

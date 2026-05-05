@@ -15,8 +15,8 @@ defmodule Gakugo.Anki.Markdown do
 
     """
     <div class="#{occlusion_class}">
-      <div class="gakugo-occlusion-mask" aria-hidden="true"></div>
       <div class="gakugo-occlusion-answer">#{answer_html}</div>
+      <div class="gakugo-occlusion-mask" aria-hidden="true"></div>
     </div>
     """
   end

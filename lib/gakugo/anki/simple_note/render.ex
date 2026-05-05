@@ -7,10 +7,10 @@ defmodule Gakugo.Anki.SimpleNote.Render do
   def preview_entries(unit) do
     unit
     |> Source.flashcard_sources()
-    |> Enum.map(&render_entry/1)
+    |> Enum.map(&render_source/1)
   end
 
-  defp render_entry(source) do
+  def render_source(source) do
     front_depth = Source.item_depth(source.entry.node)
 
     content_html =

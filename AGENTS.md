@@ -23,16 +23,26 @@ Mobile Anki App
 - `lib/gakugo/anki/anki.py` - Python functions for Anki operations (CRUD, sync)
 - `lib/gakugo/anki.ex` - GenServer wrapping Python calls via Pythonx
 - `lib/gakugo/anki/sync_service.ex` - High-level sync logic:
-  - Custom "Gakugo" note type with fields: `["Front", "Back", "GakugoId"]`
-  - Builds cards from unit pages `items` (each `front: true` node becomes one card)
+  - Custom "Gakugo" note types with fields including `GakugoId`
+  - Builds cards from unit pages `items` (each `flashcard: true` node becomes one card)
   - Uses the front node's descendants as card back content (occlusion-style)
-  - Uses tags (`gakugo-id-unit-{unit_id}-path-{path}`) to track identity and prevent duplicates
-  - Handles deletions by removing orphaned notes when notebook fronts are removed
+  - Uses the source notebook item ID in the `GakugoId` field to track identity and prevent duplicates
+  - Writes only the static `gakugo` tag; dynamic identity/unit/note-type tags are intentionally not written
+  - Handles deletions by removing orphaned notes from the unit deck when notebook fronts are removed
+
+### Identity
+
+- Notebook-derived Anki flashcards are identified by the stable source notebook item ID, not by page/path/order.
+- Moving or reordering a flashcard item must update the existing Anki note because `GakugoId` remains the same item ID.
+- Gakugo-created notes should keep only the static `gakugo` tag. Do not rely on dynamic tags such as `gakugo-id-{item_id}`, `gakugo-unit-{unit_id}`, or `gakugo-note-type-{note_type}`.
+- Sync lookup finds existing notes within the unit deck by `tag:gakugo` plus the `GakugoId` field.
+- Orphan deletion is deck-scoped: it searches the unit deck for `tag:gakugo`, reads each note's `GakugoId` field, and deletes notes whose field value is not present in the current preview entries.
+- Current caveat: `page_note` and `simple_note` do not coexist as separate notes for the same notebook item because identity is the source item `GakugoId`, not note type.
 
 ### Sync Flow
 
 1. `SyncService.sync_unit_to_anki/1` - Syncs a unit's notebook-derived flashcards to local Anki collection
-   - Creates/updates notes based on stable notebook-path tags (`gakugo-id-unit-...-path-...`)
+   - Creates/updates notes based on the stable source item ID stored in `GakugoId`
    - Front is rendered as nested HTML list with descendant back lines occluded and front highlighted
    - Back is generated from the front node's descendant text
 2. `SyncService.sync_to_server/0` - Pushes local collection to anki-sync-server

@@ -50,7 +50,8 @@ defmodule Gakugo.Anki.NoteType do
     border-color: rgba(245, 158, 11, 0.6);
   }
   .gakugo-card.is-question .gakugo-toggle-answers-btn {
-    display: none;
+    visibility: hidden;
+    pointer-events: none;
   }
   .gakugo-row {
     display: flex;
@@ -141,31 +142,36 @@ defmodule Gakugo.Anki.NoteType do
   }
   .gakugo-occlusion {
     display: block;
+    position: relative;
     border-radius: 0.5rem;
     overflow: hidden;
   }
   .gakugo-occlusion-mask {
     display: block;
-    min-height: 1.35em;
+    position: absolute;
+    inset: 0;
+    z-index: 2;
     border-radius: 0.5rem;
     background: #475569;
     background-size: 400% 100%;
     animation: gakugo-skeleton 1.7s ease-in-out infinite;
+    pointer-events: none;
   }
   .gakugo-occlusion-answer {
-    display: none;
+    display: block;
+    visibility: hidden;
   }
   .gakugo-card.is-answer .gakugo-occlusion.is-current .gakugo-occlusion-mask {
     display: none;
   }
   .gakugo-card.is-answer .gakugo-occlusion.is-current .gakugo-occlusion-answer {
-    display: block;
+    visibility: visible;
   }
   .gakugo-card.reveal-other-answers .gakugo-occlusion.is-other .gakugo-occlusion-mask {
     display: none;
   }
   .gakugo-card.reveal-other-answers .gakugo-occlusion.is-other .gakugo-occlusion-answer {
-    display: block;
+    visibility: visible;
   }
   .nightMode .gakugo-card {
     color: #e5e7eb;

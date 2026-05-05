@@ -74,4 +74,24 @@ defmodule Gakugo.Anki.MarkdownTest do
       refute String.contains?(html, "==highlight==")
     end
   end
+
+  describe "wrap_occlusion/2" do
+    test "keeps answer content in flow before the absolute mask overlay" do
+      html = Markdown.wrap_occlusion("<p>multi<br>line answer</p>", true)
+
+      assert String.contains?(html, ~s|class="gakugo-occlusion is-current"|)
+
+      assert String.contains?(
+               html,
+               ~s|<div class="gakugo-occlusion-answer"><p>multi<br>line answer</p></div>|
+             )
+
+      assert String.contains?(
+               html,
+               ~s|<div class="gakugo-occlusion-mask" aria-hidden="true"></div>|
+             )
+
+      assert html =~ ~r/gakugo-occlusion-answer.*gakugo-occlusion-mask/s
+    end
+  end
 end

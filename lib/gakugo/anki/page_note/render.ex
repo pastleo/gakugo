@@ -7,10 +7,10 @@ defmodule Gakugo.Anki.PageNote.Render do
   def preview_entries(unit) do
     unit
     |> Source.flashcard_sources()
-    |> Enum.map(&render_entry/1)
+    |> Enum.map(&render_source/1)
   end
 
-  defp render_entry(source) do
+  def render_source(source) do
     content_html =
       source.entries
       |> render_html_nodes(
@@ -85,16 +85,6 @@ defmodule Gakugo.Anki.PageNote.Render do
       >
         Toggle revealing other answers
       </button>
-      <script>
-        (function () {
-          var script = document.currentScript;
-          var button = script && script.previousElementSibling;
-          var card = button && button.closest('.gakugo-card');
-          if (button && card && !card.classList.contains('is-answer')) {
-            button.remove();
-          }
-        })();
-      </script>
     </div>
     <ul class="gakugo-notebook">#{body_html}</ul>
     """
