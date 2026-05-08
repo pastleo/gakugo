@@ -7,6 +7,7 @@ import React, {
   useRef,
 } from "react";
 import { useStore } from "zustand";
+import { useShallow } from "zustand/react/shallow";
 import { createStore, type StoreApi } from "zustand/vanilla";
 import {
   moveItemIntent,
@@ -29,6 +30,7 @@ import type {
   NotebookEditorProviderProps,
   NotebookEditorState,
   NotebookInitialPages,
+  NotebookItem,
   NotebookItemId,
   NotebookPage,
   NotebookPageId,
@@ -80,6 +82,24 @@ function useNotebookEditorClient() {
   }
 
   return client;
+}
+
+function findNotebookPage(
+  pages: NotebookPage[],
+  pageId: NotebookPageId,
+): NotebookPage | null {
+  return pages.find((page) => page.id === pageId) ?? null;
+}
+
+function findNotebookItem(
+  pages: NotebookPage[],
+  pageId: NotebookPageId,
+  itemId: NotebookItemId,
+): NotebookItem | null {
+  return (
+    findNotebookPage(pages, pageId)?.items.find((item) => item.id === itemId) ??
+    null
+  );
 }
 
 export function NotebookEditorProvider({
@@ -138,8 +158,18 @@ export function NotebookEditorProvider({
       };
     };
 
+    const getCurrentPage = (page: NotebookPage) =>
+      store
+        .getState()
+        .pages.find((currentPage) => currentPage.id === page.id) ?? page;
+
     const pageContent = (args: PageContentIntentArgs) =>
-      send(pageContentIntent(args));
+      send(
+        pageContentIntent({
+          ...args,
+          page: getCurrentPage(args.page),
+        }),
+      );
 
     const sendPageAction = (
       page: NotebookPage,
@@ -166,10 +196,22 @@ export function NotebookEditorProvider({
           y_state_as_update: yStateAsUpdate,
         }),
       setItemTextColor: (page, itemId, color) =>
-        send(setItemColorIntent(page, itemId, "set_item_text_color", color)),
+        send(
+          setItemColorIntent(
+            getCurrentPage(page),
+            itemId,
+            "set_item_text_color",
+            color,
+          ),
+        ),
       setItemBackgroundColor: (page, itemId, color) =>
         send(
-          setItemColorIntent(page, itemId, "set_item_background_color", color),
+          setItemColorIntent(
+            getCurrentPage(page),
+            itemId,
+            "set_item_background_color",
+            color,
+          ),
         ),
       setPrompting: (page, itemId, prompting) =>
         sendPageAction(page, "set_prompting", itemId, { prompting }),
@@ -271,6 +313,54 @@ export function useNotebookEditor() {
       client,
     }),
     [client, lastUpdateKind, pages, unitId],
+  );
+}
+
+export function useNotebookEditorActions() {
+  return useNotebookEditorClient();
+}
+
+export function useNotebookEditorUnitId() {
+  const store = useNotebookEditorStore();
+
+  return useStore(store, (state) => state.unitId);
+}
+
+export function useNotebookEditorPageSummaries() {
+  const store = useNotebookEditorStore();
+
+  return useStore(
+    store,
+    useShallow((state) =>
+      state.pages.map((page) => `${page.id}:${page.editedAt}`),
+    ),
+  );
+}
+
+export function useNotebookEditorPage(pageId: NotebookPageId) {
+  const store = useNotebookEditorStore();
+
+  return useStore(store, (state) => findNotebookPage(state.pages, pageId));
+}
+
+export function useNotebookEditorItem(
+  pageId: NotebookPageId,
+  itemId: NotebookItemId,
+) {
+  const store = useNotebookEditorStore();
+
+  return useStore(store, (state) =>
+    findNotebookItem(state.pages, pageId, itemId),
+  );
+}
+
+export function useNotebookEditorPageByIdGetter() {
+  const store = useNotebookEditorStore();
+
+  return useCallback(
+    (pageId: NotebookPageId) =>
+      findNotebookPage(store.getState().pages, pageId),
+    [store],
   );
 }
 

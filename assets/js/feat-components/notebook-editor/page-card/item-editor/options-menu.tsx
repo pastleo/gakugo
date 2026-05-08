@@ -1,6 +1,6 @@
 import React from "react";
 import { ColorRailPicker } from "../../../../components/color-rail-picker";
-import { useNotebookEditor } from "../../../../contexts/notebook-editor-context";
+import { useNotebookEditorActions } from "../../../../contexts/notebook-editor-context";
 import type {
   NotebookItem,
   NotebookPage,
@@ -61,7 +61,7 @@ export function ItemEditorOptionsMenu({
   item,
   buttonProps,
 }: OptionsMenuProps) {
-  const { client } = useNotebookEditor();
+  const client = useNotebookEditorActions();
 
   return (
     <div className="focus-menu relative">

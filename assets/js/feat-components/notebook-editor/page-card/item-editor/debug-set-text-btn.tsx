@@ -3,7 +3,7 @@ import type {
   NotebookItem,
   NotebookPage,
 } from "../../../../contexts/notebook-editor-context";
-import { useNotebookEditor } from "../../../../contexts/notebook-editor-context";
+import { useNotebookEditorActions } from "../../../../contexts/notebook-editor-context";
 
 interface DebugSetTextButtonProps {
   page: NotebookPage;
@@ -14,7 +14,7 @@ export const DebugSetTextButton = memo(function DebugSetTextButton({
   page,
   item,
 }: DebugSetTextButtonProps) {
-  const { client } = useNotebookEditor();
+  const client = useNotebookEditorActions();
 
   return (
     <button

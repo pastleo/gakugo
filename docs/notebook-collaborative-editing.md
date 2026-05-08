@@ -82,6 +82,7 @@ Current protocol direction for editable notebook items:
   "flashcard": false,
   "answer": false,
   "prompting": null,
+  "editedAt": 1710000000000,
   "yStateAsUpdate": "<opaque serialized editor state>"
 }
 ```
@@ -93,6 +94,7 @@ Key rules:
 - `yStateAsUpdate` is expected to be non-null everywhere in the app
 - `prompting` is durable collaborative item state for the inline item action composer; it is not local-only UI state
 - `prompting` does not carry prompt text; the item `text` / Milkdown content remains the prompt/source body
+- `editedAt` is server-owned runtime/UI invalidation metadata in millisecond form; clients may read it to decide what should rerender, but must not send or author it as intent input
 
 Current prompting shape:
 
@@ -304,7 +306,15 @@ Common update kinds:
 - `unit_meta_updated`
 - `page_item_updated`
 
-Page payloads inside update packets and snapshots are plain runtime page maps. They include `id`, `title`, `version`, `items`, and persisted page metadata needed by the editor/runtime. They do not include server-derived UI booleans such as `can_move_up` or `can_move_down`.
+Page payloads inside update packets and snapshots are plain runtime page maps. They include `id`, `title`, `version`, `editedAt`, `items`, and persisted page metadata needed by the editor/runtime. They do not include server-derived UI booleans such as `can_move_up` or `can_move_down`.
+
+`editedAt` rules:
+- `page.editedAt` and `item.editedAt` are generated and updated only by `UnitSession` / the server runtime.
+- Clients should treat `editedAt` as read-only render invalidation metadata, not durable DB metadata and not collaboration input.
+- DB `updated_at` remains persistence-level metadata and should not be reused as per-item UI invalidation state.
+- Intent `payload`, `target`, and client-sent `nodes` must not be trusted for `editedAt`; server handling should ignore any client-supplied values and stamp changed runtime entities itself.
+- Text-only item updates should advance the containing page `editedAt` and the touched item `editedAt` while preserving unchanged sibling item `editedAt` values.
+- Structural edits should advance affected pages and affected/moved/inserted/removed item contexts as needed for correct UI invalidation.
 
 Examples:
 

@@ -121,12 +121,14 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
           <section class="space-y-6">
             <section class="space-y-3">
               <div
-                id="notebook-editor-root"
+                id="notebook-editor-bridge"
                 phx-hook="NotebookEditorPhxHook"
-                phx-update="ignore"
+                data-root-id="notebook-editor-root"
                 data-initial-pages-json={@initial_pages_json}
               >
               </div>
+
+              <div id="notebook-editor-root" phx-update="ignore"></div>
             </section>
           </section>
         </div>
@@ -204,7 +206,10 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
     if socket.assigns.active_drawer == "flashcards" do
       {:noreply, assign(socket, :active_drawer, nil)}
     else
-      {:noreply, assign(socket, :active_drawer, "flashcards")}
+      {:noreply,
+       socket
+       |> refresh_unit_from_session()
+       |> assign(:active_drawer, "flashcards")}
     end
   end
 
@@ -254,6 +259,11 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
     socket
   end
 
+  defp refresh_unit_from_session(socket) do
+    snapshot = UnitSession.snapshot(socket.assigns.unit.id)
+    assign(socket, :unit, snapshot.unit)
+  end
+
   defp ensure_unit_has_page(unit) do
     if unit.pages == [] do
       {:ok, _page} =
@@ -297,14 +307,22 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
   end
 
   defp apply_canonical_update(socket, %{kind: "page_updated", page: page}) do
-    assign(socket, :unit, put_unit_page(socket.assigns.unit, page))
+    maybe_assign_notebook_pages(socket, fn unit -> put_unit_page(unit, page) end)
   end
 
   defp apply_canonical_update(socket, %{kind: "pages_list_updated", pages: pages}) do
-    assign(socket, :unit, %{socket.assigns.unit | pages: pages})
+    maybe_assign_notebook_pages(socket, fn unit -> %{unit | pages: pages} end)
   end
 
   defp apply_canonical_update(socket, _), do: socket
+
+  defp maybe_assign_notebook_pages(socket, update_unit) do
+    if socket.assigns.active_drawer == "flashcards" do
+      assign(socket, :unit, update_unit.(socket.assigns.unit))
+    else
+      socket
+    end
+  end
 
   defp apply_unit_meta_intent(socket, unit_params) do
     case UnitSession.apply_intent(socket.assigns.unit.id, socket.assigns.actor_id, %{

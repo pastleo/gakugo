@@ -316,7 +316,16 @@ defmodule Gakugo.Notebook.UnitSession do
           current_version = current_runtime_page_version(runtime_state.unit, page_id)
           base_version = max(current_version, intent_local_version(intent))
           next_version = base_version + 1
-          updated_page = %{page | items: result.nodes, version: next_version}
+          edited_at = next_edited_at(page)
+
+          updated_page = %{
+            page
+            | editedAt: edited_at,
+              items:
+                reconcile_runtime_item_edited_at(result.nodes, page.items, intent, edited_at),
+              version: next_version
+          }
+
           next_unit = upsert_runtime_page(runtime_state.unit, page_id, updated_page)
 
           operation = %{
@@ -382,7 +391,21 @@ defmodule Gakugo.Notebook.UnitSession do
         if source_page_id == target_page_id do
           case Editor.apply(source_nodes, {:move_item, source_target, destination_target}) do
             {:ok, result} ->
-              updated_page = %{source_page | items: result.nodes, version: source_next_version}
+              edited_at = next_edited_at(source_page)
+
+              updated_page = %{
+                source_page
+                | editedAt: edited_at,
+                  items:
+                    reconcile_runtime_item_edited_at(
+                      result.nodes,
+                      source_page.items,
+                      [source_item_id],
+                      edited_at
+                    ),
+                  version: source_next_version
+              }
+
               next_unit = upsert_runtime_page(runtime_state.unit, source_page_id, updated_page)
 
               operation = %{
@@ -422,15 +445,33 @@ defmodule Gakugo.Notebook.UnitSession do
                   next_source_nodes = source_result.nodes
                   next_target_nodes = target_result.nodes
 
+                  source_edited_at = next_edited_at(source_page)
+                  target_edited_at = next_edited_at(target_page)
+                  moved_item_ids = Enum.map(source_subtree, & &1["id"])
+
                   source_page_after = %{
                     source_page
-                    | items: next_source_nodes,
+                    | editedAt: source_edited_at,
+                      items:
+                        reconcile_runtime_item_edited_at(
+                          next_source_nodes,
+                          source_page.items,
+                          moved_item_ids,
+                          source_edited_at
+                        ),
                       version: source_next_version
                   }
 
                   target_page_after = %{
                     target_page
-                    | items: next_target_nodes,
+                    | editedAt: target_edited_at,
+                      items:
+                        reconcile_runtime_item_edited_at(
+                          next_target_nodes,
+                          target_page.items,
+                          moved_item_ids,
+                          target_edited_at
+                        ),
                       version: target_next_version
                   }
 
@@ -490,7 +531,8 @@ defmodule Gakugo.Notebook.UnitSession do
          page when not is_nil(page) <- find_runtime_page(runtime_state.unit, page_id) do
       current_version = current_runtime_page_version(runtime_state.unit, page_id)
       next_version = current_version + 1
-      updated_page = %{page | title: title, version: next_version}
+      edited_at = next_edited_at(page)
+      updated_page = %{page | editedAt: edited_at, title: title, version: next_version}
       next_unit = upsert_runtime_page(runtime_state.unit, page_id, updated_page)
 
       operation = %{
@@ -1100,6 +1142,58 @@ defmodule Gakugo.Notebook.UnitSession do
     end)
   end
 
+  defp reconcile_runtime_item_edited_at(next_items, previous_items, intent, edited_at)
+       when is_map(intent) do
+    touched_item_ids =
+      intent
+      |> editor_target_from_intent()
+      |> target_item_ids()
+
+    reconcile_runtime_item_edited_at(next_items, previous_items, touched_item_ids, edited_at)
+  end
+
+  defp reconcile_runtime_item_edited_at(next_items, previous_items, touched_item_ids, edited_at)
+       when is_list(touched_item_ids) do
+    previous_edited_at_by_id =
+      previous_items
+      |> Map.new(fn item -> {item["id"], Map.get(item, "editedAt", edited_at)} end)
+
+    touched_item_ids = MapSet.new(touched_item_ids)
+
+    Enum.map(next_items, fn item ->
+      cond do
+        MapSet.member?(touched_item_ids, item["id"]) ->
+          Map.put(item, "editedAt", edited_at)
+
+        Map.has_key?(previous_edited_at_by_id, item["id"]) ->
+          Map.put(item, "editedAt", Map.fetch!(previous_edited_at_by_id, item["id"]))
+
+        true ->
+          Map.put(item, "editedAt", edited_at)
+      end
+    end)
+  end
+
+  defp target_item_ids(%{"item_id" => item_id}) when is_binary(item_id) and item_id != "",
+    do: [item_id]
+
+  defp target_item_ids(_target), do: []
+
+  defp hydrate_runtime_item_edited_at(items, edited_at) do
+    Enum.map(items, &Map.put(&1, "editedAt", edited_at))
+  end
+
+  defp next_edited_at(page) do
+    current_page_edited_at = Map.get(page, :editedAt, 0)
+
+    current_item_edited_at =
+      page.items
+      |> Enum.map(&Map.get(&1, "editedAt", 0))
+      |> Enum.max(fn -> 0 end)
+
+    max(edited_at_ms(), max(current_page_edited_at, current_item_edited_at) + 1)
+  end
+
   defp page_content_command(%{"action" => "set_text"} = intent) do
     {:ok,
      {:set_text, editor_target_from_intent(intent), Map.get(intent_payload(intent), "text", "")},
@@ -1303,14 +1397,20 @@ defmodule Gakugo.Notebook.UnitSession do
   end
 
   defp runtime_page_from_ecto(page) do
+    edited_at = edited_at_ms()
+
     %{
       id: page.id,
       title: page.title,
       version: 0,
+      editedAt: edited_at,
       inserted_at: page.inserted_at,
       unit_id: page.unit_id,
       position: page.position,
-      items: Outline.normalize_items(page.items || [])
+      items:
+        (page.items || [])
+        |> Outline.normalize_items()
+        |> hydrate_runtime_item_edited_at(edited_at)
     }
   end
 
@@ -1329,4 +1429,5 @@ defmodule Gakugo.Notebook.UnitSession do
   end
 
   defp now_ms, do: System.monotonic_time(:millisecond)
+  defp edited_at_ms, do: System.system_time(:millisecond)
 end

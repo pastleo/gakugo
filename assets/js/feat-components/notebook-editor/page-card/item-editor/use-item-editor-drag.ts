@@ -1,5 +1,9 @@
 import { useCallback, useMemo } from "react";
-import { useNotebookEditor } from "../../../../contexts/notebook-editor-context";
+import {
+  useNotebookEditorActions,
+  type NotebookItemId,
+  type NotebookPageId,
+} from "../../../../contexts/notebook-editor-context";
 import {
   decodeDragPayload,
   encodeDragPayload,
@@ -11,41 +15,36 @@ import {
   useNotebookEditorDrag,
   type NotebookDragTarget,
 } from "../../../../contexts/notebook-editor-drag-context";
-import type {
-  NotebookItem,
-  NotebookPage,
-} from "../../../../contexts/notebook-editor-context";
-
 interface UseItemEditorDragArgs {
-  page: NotebookPage;
-  item: NotebookItem;
+  pageId: NotebookPageId;
+  itemId: NotebookItemId;
 }
 
-export function useItemEditorDrag({ page, item }: UseItemEditorDragArgs) {
-  const { client, pages } = useNotebookEditor();
+export function useItemEditorDrag({ pageId, itemId }: UseItemEditorDragArgs) {
+  const client = useNotebookEditorActions();
   const { dragState, setDragState } = useNotebookEditorDrag();
 
   const isDraggingSource =
-    dragState?.source.pageId === page.id && dragState.source.itemId === item.id;
+    dragState?.source.pageId === pageId && dragState.source.itemId === itemId;
 
   const isDropBefore = targetMatchesRow(
     dragState?.target ?? null,
-    page.id,
-    item.id,
+    pageId,
+    itemId,
     "before",
   );
 
   const isDropAfter = targetMatchesRow(
     dragState?.target ?? null,
-    page.id,
-    item.id,
+    pageId,
+    itemId,
     "after_as_peer",
   );
 
   const isDropAsChild = targetMatchesRow(
     dragState?.target ?? null,
-    page.id,
-    item.id,
+    pageId,
+    itemId,
     "after_as_child",
   );
 
@@ -54,15 +53,15 @@ export function useItemEditorDrag({ page, item }: UseItemEditorDragArgs) {
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData(
         NOTEBOOK_ITEM_DRAG_MIME,
-        encodeDragPayload({ pageId: page.id, itemId: item.id }),
+        encodeDragPayload({ pageId, itemId }),
       );
 
       setDragState({
-        source: { pageId: page.id, itemId: item.id },
+        source: { pageId, itemId },
         target: null,
       });
     },
-    [item.id, page.id, setDragState],
+    [itemId, pageId, setDragState],
   );
 
   const handleDragEnd = useCallback(() => {
@@ -83,13 +82,13 @@ export function useItemEditorDrag({ page, item }: UseItemEditorDragArgs) {
         ...(current ?? { source, target: null }),
         target: {
           kind: "item",
-          pageId: page.id,
-          itemId: item.id,
+          pageId,
+          itemId,
           placement,
         },
       }));
     },
-    [dragState?.source, isDraggingSource, item.id, page.id, setDragState],
+    [dragState?.source, isDraggingSource, itemId, pageId, setDragState],
   );
 
   const handleRowDragLeave = useCallback(
@@ -101,8 +100,8 @@ export function useItemEditorDrag({ page, item }: UseItemEditorDragArgs) {
       setDragState((current) => {
         if (
           current?.target?.kind === "item" &&
-          current.target.pageId === page.id &&
-          current.target.itemId === item.id
+          current.target.pageId === pageId &&
+          current.target.itemId === itemId
         ) {
           return { ...current, target: null };
         }
@@ -110,7 +109,7 @@ export function useItemEditorDrag({ page, item }: UseItemEditorDragArgs) {
         return current;
       });
     },
-    [item.id, page.id, setDragState],
+    [itemId, pageId, setDragState],
   );
 
   const handleRowDrop = useCallback(
@@ -125,31 +124,30 @@ export function useItemEditorDrag({ page, item }: UseItemEditorDragArgs) {
             event.dataTransfer.getData(NOTEBOOK_ITEM_DRAG_MIME),
           );
 
-        if (
-          !source ||
-          (source.pageId === page.id && source.itemId === item.id)
-        ) {
+        if (!source || (source.pageId === pageId && source.itemId === itemId)) {
           return;
         }
 
+        const { pages } = client.getState();
         const sourcePage = pages.find(
           (current) => current.id === source.pageId,
         );
-        if (!sourcePage) {
+        const targetPage = pages.find((current) => current.id === pageId);
+        if (!sourcePage || !targetPage) {
           return;
         }
 
         const target: NotebookDragTarget = {
           kind: "item" as const,
-          pageId: page.id,
-          itemId: item.id,
+          pageId,
+          itemId,
           placement,
         };
 
         await client.moveItem(
           makeMoveItemArgs({
             sourcePage,
-            targetPage: page,
+            targetPage,
             sourceItemId: source.itemId,
             target,
           }),
@@ -158,7 +156,7 @@ export function useItemEditorDrag({ page, item }: UseItemEditorDragArgs) {
         setDragState(null);
       }
     },
-    [client, dragState?.source, item.id, page, pages, setDragState],
+    [client, dragState?.source, itemId, pageId, setDragState],
   );
 
   const rowClassName = useMemo(

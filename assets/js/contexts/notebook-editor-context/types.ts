@@ -31,6 +31,7 @@ export interface NotebookItem {
   depth: number;
   flashcard: boolean;
   answer: boolean;
+  editedAt: number;
   yStateAsUpdate: string;
   textColor?: NotebookColorName | null;
   backgroundColor?: NotebookColorName | null;
@@ -41,6 +42,7 @@ export interface NotebookPage {
   id: NotebookPageId;
   title: string;
   version: number;
+  editedAt: number;
   items: NotebookItem[];
   inserted_at: string | null;
   unit_id: NotebookUnitId;

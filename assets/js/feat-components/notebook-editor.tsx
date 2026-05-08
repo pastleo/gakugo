@@ -1,7 +1,9 @@
 import React from "react";
 import {
   NotebookEditorProvider,
-  useNotebookEditor,
+  useNotebookEditorActions,
+  useNotebookEditorPageSummaries,
+  useNotebookEditorUnitId,
   type ApplyIntent,
   type ApplyIntentReply,
   type NotebookEditorProps,
@@ -15,24 +17,31 @@ import { ToastProvider } from "../contexts/toast-context";
 import { PageCard } from "./notebook-editor/page-card";
 
 function NotebookEditorSurface() {
-  const { client, pages, unitId } = useNotebookEditor();
+  const client = useNotebookEditorActions();
+  const pageSummaries = useNotebookEditorPageSummaries();
+  const unitId = useNotebookEditorUnitId();
 
   return (
     <section
       id="notebook-editor-shell"
       className="space-y-4 text-sm text-base-content"
       data-unit-id={unitId ?? ""}
-      data-page-count={String(pages.length)}
+      data-page-count={String(pageSummaries.length)}
     >
       <div className="space-y-4">
-        {pages.map((page, index) => (
-          <PageCard
-            key={page.id}
-            page={page}
-            pageIndex={index}
-            pageCount={pages.length}
-          />
-        ))}
+        {pageSummaries.map((pageSummary, index) => {
+          const [pageId, editedAt] = pageSummary.split(":").map(Number);
+
+          return (
+            <PageCard
+              key={pageId}
+              pageId={pageId}
+              editedAt={editedAt}
+              pageIndex={index}
+              pageCount={pageSummaries.length}
+            />
+          );
+        })}
 
         <button
           type="button"

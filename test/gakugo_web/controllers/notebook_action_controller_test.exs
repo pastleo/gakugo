@@ -5,6 +5,11 @@ defmodule GakugoWeb.NotebookActionControllerTest do
 
   alias Gakugo.Db
 
+  setup do
+    stop_all_unit_sessions()
+    :ok
+  end
+
   test "POST /api/notebook_action/parse_as_items", %{conn: conn} do
     unit = unit_fixture()
     page = hd(Db.get_unit!(unit.id).pages)
@@ -72,5 +77,16 @@ defmodule GakugoWeb.NotebookActionControllerTest do
       })
 
     assert %{"kind" => "page_updated"} = json_response(response, 200)
+  end
+
+  defp stop_all_unit_sessions do
+    for {_, pid, _, _} <-
+          DynamicSupervisor.which_children(Gakugo.Notebook.UnitSession.Supervisor) do
+      ref = Process.monitor(pid)
+
+      :ok = DynamicSupervisor.terminate_child(Gakugo.Notebook.UnitSession.Supervisor, pid)
+
+      assert_receive {:DOWN, ^ref, :process, ^pid, _reason}
+    end
   end
 end

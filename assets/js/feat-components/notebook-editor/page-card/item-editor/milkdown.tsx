@@ -31,6 +31,8 @@ import { useMilkdownToolbar } from "./milkdown/toolbar";
 import { useFocusControl } from "./milkdown/use-focus-control";
 import { notebookHighlight } from "./milkdown/highlight";
 
+const TEXT_COLLAB_UPDATE_THROTTLE_MS = 600;
+
 interface MilkdownItemEditorProps {
   page: NotebookPage;
   item: NotebookItem;
@@ -56,6 +58,9 @@ function MilkdownItemEditorSurface(
   propsRef.current = props;
 
   const refs = useRef<EditorRuntime | null>(null);
+  const latestTextCollabUpdatePendingRef = useRef(false);
+  const lastTextCollabUpdateSentAtRef = useRef(0);
+  const textCollabUpdateTimeoutRef = useRef<number | undefined>(undefined);
 
   const getCurrentMarkdown = useCallback(() => {
     const editor = refs.current?.editor;
@@ -65,6 +70,53 @@ function MilkdownItemEditorSurface(
 
     return readCurrentMarkdown(editor);
   }, []);
+
+  const clearScheduledTextCollabUpdate = useCallback(() => {
+    if (textCollabUpdateTimeoutRef.current === undefined) {
+      return;
+    }
+
+    window.clearTimeout(textCollabUpdateTimeoutRef.current);
+    textCollabUpdateTimeoutRef.current = undefined;
+  }, []);
+
+  const flushTextCollabUpdate = useCallback(() => {
+    if (!latestTextCollabUpdatePendingRef.current || !refs.current) {
+      return;
+    }
+
+    clearScheduledTextCollabUpdate();
+    latestTextCollabUpdatePendingRef.current = false;
+    lastTextCollabUpdateSentAtRef.current = Date.now();
+    propsRef.current.onChange(
+      getCurrentMarkdown(),
+      encodeUpdate(Y.encodeStateAsUpdate(refs.current.yDoc)),
+    );
+  }, [clearScheduledTextCollabUpdate, getCurrentMarkdown]);
+
+  const queueTextCollabUpdate = useCallback(() => {
+    latestTextCollabUpdatePendingRef.current = true;
+
+    const now = Date.now();
+    const elapsed = now - lastTextCollabUpdateSentAtRef.current;
+
+    if (
+      lastTextCollabUpdateSentAtRef.current === 0 ||
+      elapsed >= TEXT_COLLAB_UPDATE_THROTTLE_MS
+    ) {
+      flushTextCollabUpdate();
+      return;
+    }
+
+    if (textCollabUpdateTimeoutRef.current !== undefined) {
+      return;
+    }
+
+    textCollabUpdateTimeoutRef.current = window.setTimeout(() => {
+      textCollabUpdateTimeoutRef.current = undefined;
+      flushTextCollabUpdate();
+    }, TEXT_COLLAB_UPDATE_THROTTLE_MS - elapsed);
+  }, [flushTextCollabUpdate]);
 
   const pendingArrowUpToFrontRef = useRef(false);
   const handleKeyDown = useItemEditorKeyboard({
@@ -91,6 +143,12 @@ function MilkdownItemEditorSurface(
           attributes: {
             class:
               "field-sizing-content min-h-8 w-full whitespace-pre-wrap border-0 border-b border-base-content/30 bg-transparent px-1.5 py-1 text-sm leading-6 text-inherit outline-hidden transition focus:border-primary",
+          },
+          handleDOMEvents: {
+            blur: () => {
+              flushTextCollabUpdate();
+              return false;
+            },
           },
           handleKeyDown,
         });
@@ -121,10 +179,7 @@ function MilkdownItemEditorSurface(
       if (origin === REMOTE_Y_ORIGIN) return;
       queueMicrotask(() => {
         if (!refs.current) return;
-        propsRef.current.onChange(
-          getCurrentMarkdown(),
-          encodeUpdate(Y.encodeStateAsUpdate(refs.current.yDoc)),
-        );
+        queueTextCollabUpdate();
       });
     });
 
@@ -140,9 +195,10 @@ function MilkdownItemEditorSurface(
     });
 
     return () => {
+      flushTextCollabUpdate();
       propsRef.current.onMilkdownResetNeeded();
     };
-  }, [get, loading, getCurrentMarkdown]);
+  }, [get, loading, queueTextCollabUpdate, flushTextCollabUpdate]);
 
   useEffect(() => {
     if (!refs.current) return;

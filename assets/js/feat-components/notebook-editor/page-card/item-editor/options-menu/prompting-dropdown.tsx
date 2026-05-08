@@ -4,7 +4,7 @@ import type {
   NotebookPage,
   PromptingMode,
 } from "../../../../../contexts/notebook-editor-context";
-import { useNotebookEditor } from "../../../../../contexts/notebook-editor-context";
+import { useNotebookEditorActions } from "../../../../../contexts/notebook-editor-context";
 import { defaultItemPrompting } from "../prompting-panel";
 
 interface PromptingDropdownProps {
@@ -18,7 +18,7 @@ const ACTION_OPTIONS: Array<{ value: PromptingMode; label: string }> = [
 ];
 
 export function PromptingDropdown({ page, item }: PromptingDropdownProps) {
-  const { client } = useNotebookEditor();
+  const client = useNotebookEditorActions();
   const promptingOpen = Boolean(item.prompting);
   const dropdownRef = React.useRef<HTMLDivElement | null>(null);
 

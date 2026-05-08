@@ -7,7 +7,7 @@ import type {
   PromptingInsertionMode,
   PromptingMode,
 } from "../../../../contexts/notebook-editor-context";
-import { useNotebookEditor } from "../../../../contexts/notebook-editor-context";
+import { useNotebookEditorActions } from "../../../../contexts/notebook-editor-context";
 import { useToast } from "../../../../contexts/toast-context";
 import {
   NotebookActionClientError,
@@ -100,7 +100,7 @@ function promptingWithAnswerMode(
 }
 
 export function ItemEditorPromptingPanel({ page, item }: PromptingPanelProps) {
-  const { client } = useNotebookEditor();
+  const client = useNotebookEditorActions();
   const { pushToast } = useToast();
   const prompting = item.prompting;
   const [renderedPrompting, setRenderedPrompting] =

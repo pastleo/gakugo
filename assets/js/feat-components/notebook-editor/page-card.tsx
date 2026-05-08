@@ -1,7 +1,8 @@
 import React, { memo } from "react";
 import {
-  useNotebookEditor,
-  type NotebookPage,
+  useNotebookEditorActions,
+  useNotebookEditorPage,
+  type NotebookPageId,
 } from "../../contexts/notebook-editor-context";
 import {
   targetMatchesPage,
@@ -13,36 +14,45 @@ import { ItemEditor } from "./page-card/item-editor";
 import { PageActionsMenu } from "./page-card/page-actions-menu";
 
 interface PageCardProps {
-  page: NotebookPage;
+  pageId: NotebookPageId;
+  editedAt: number;
   pageIndex: number;
   pageCount: number;
 }
 
 export const PageCard = memo(function PageCard({
-  page,
+  pageId,
+  editedAt,
   pageIndex,
   pageCount,
 }: PageCardProps) {
-  const { client } = useNotebookEditor();
+  const client = useNotebookEditorActions();
+  const page = useNotebookEditorPage(pageId);
   const {
     dragState,
     handlePageRootEndDragLeave,
     handlePageRootEndDragOver,
     handlePageRootEndDrop,
   } = useNotebookEditorDrag();
-  const [titleDraft, setTitleDraft] = useSyncedValue(page.title);
+  const [titleDraft, setTitleDraft] = useSyncedValue(page?.title ?? "");
   const canMoveUp = pageIndex > 0;
   const canMoveDown = pageIndex < pageCount - 1;
   const isPageDropTarget = targetMatchesPage(
     dragState?.target ?? null,
-    page.id,
+    pageId,
     "root_end",
   );
+
+  if (!page) {
+    return null;
+  }
+
   return (
     <article
-      id={`react-page-card-${page.id}`}
+      id={`react-page-card-${pageId}`}
       data-page-version={page.version}
-      data-page-id={page.id}
+      data-page-edited-at={editedAt}
+      data-page-id={pageId}
       data-drop-zone="root_end"
       onDragOver={handlePageRootEndDragOver}
       onDrop={handlePageRootEndDrop}
@@ -93,8 +103,9 @@ export const PageCard = memo(function PageCard({
           {page.items.map((item, index) => (
             <ItemEditor
               key={item.id}
-              page={page}
-              item={item}
+              pageId={pageId}
+              itemId={item.id}
+              editedAt={item.editedAt}
               itemIndex={index}
             />
           ))}

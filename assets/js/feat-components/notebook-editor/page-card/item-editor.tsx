@@ -1,9 +1,11 @@
 import React, { memo } from "react";
-import type {
-  NotebookItem,
-  NotebookPage,
+import {
+  useNotebookEditorActions,
+  useNotebookEditorItem,
+  useNotebookEditorPageByIdGetter,
+  type NotebookItemId,
+  type NotebookPageId,
 } from "../../../contexts/notebook-editor-context";
-import { useNotebookEditor } from "../../../contexts/notebook-editor-context";
 import {
   notebookItemBackgroundColorClass,
   notebookItemTextColorClass,
@@ -16,17 +18,22 @@ import { ItemEditorPromptingPanel } from "./item-editor/prompting-panel";
 import { useItemEditorDrag } from "./item-editor/use-item-editor-drag";
 
 interface ItemEditorProps {
-  page: NotebookPage;
-  item: NotebookItem;
+  pageId: NotebookPageId;
+  itemId: NotebookItemId;
+  editedAt: number;
   itemIndex: number;
 }
 
 export const ItemEditor = memo(function ItemEditor({
-  page,
-  item,
+  pageId,
+  itemId,
+  editedAt,
   itemIndex,
 }: ItemEditorProps) {
-  const { client } = useNotebookEditor();
+  const client = useNotebookEditorActions();
+  const getPageById = useNotebookEditorPageByIdGetter();
+  const page = getPageById(pageId);
+  const item = useNotebookEditorItem(pageId, itemId);
   const showDebugSetTextButton = isDebugEnabled();
 
   const {
@@ -39,12 +46,17 @@ export const ItemEditor = memo(function ItemEditor({
     handleRowDragOver,
     handleRowDragLeave,
     handleRowDrop,
-  } = useItemEditorDrag({ page, item });
+  } = useItemEditorDrag({ pageId, itemId });
+
+  if (!page || !item) {
+    return null;
+  }
 
   return (
     <li
-      id={`react-notebook-item-${page.id}-${item.id}`}
-      data-react-item-id={item.id}
+      id={`react-notebook-item-${pageId}-${itemId}`}
+      data-react-item-id={itemId}
+      data-react-item-edited-at={editedAt}
       style={{ paddingLeft: `${item.depth * 1.25}rem` }}
       onDragOver={handleRowDragOver}
       onDragLeave={handleRowDragLeave}

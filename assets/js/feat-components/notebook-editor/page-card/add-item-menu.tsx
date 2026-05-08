@@ -1,5 +1,5 @@
 import React from "react";
-import { useNotebookEditor } from "../../../contexts/notebook-editor-context";
+import { useNotebookEditorActions } from "../../../contexts/notebook-editor-context";
 import type { NotebookPage } from "../../../contexts/notebook-editor-context";
 
 interface AddItemMenuProps {
@@ -7,7 +7,7 @@ interface AddItemMenuProps {
 }
 
 export function AddItemMenu({ page }: AddItemMenuProps) {
-  const { client } = useNotebookEditor();
+  const client = useNotebookEditorActions();
 
   return (
     <div className="focus-menu relative">

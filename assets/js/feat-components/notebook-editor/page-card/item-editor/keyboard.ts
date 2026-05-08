@@ -2,7 +2,7 @@ import { useCallback, useRef, type MutableRefObject } from "react";
 import { TextSelection, type Transaction } from "prosemirror-state";
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { EditorView } from "prosemirror-view";
-import { useNotebookEditor } from "../../../../contexts/notebook-editor-context";
+import { useNotebookEditorActions } from "../../../../contexts/notebook-editor-context";
 import {
   useNotebookEditorFocus,
   type NotebookEditorItemSelectionTarget,
@@ -105,7 +105,7 @@ export function useItemEditorKeyboard({
   getCurrentMarkdown,
   pendingArrowUpToFrontRef,
 }: UseItemEditorKeyboardArgs) {
-  const { client } = useNotebookEditor();
+  const client = useNotebookEditorActions();
   const { requestItemFocus } = useNotebookEditorFocus();
   const latestArgsRef = useRef({ page, item, itemIndex, getCurrentMarkdown });
 
@@ -162,10 +162,20 @@ export function useItemEditorKeyboard({
   const handleKeyDown = useCallback(
     (view: ItemEditorViewLike, event: KeyboardEvent) => {
       const {
-        page: currentPage,
-        item: currentItem,
-        itemIndex: currentItemIndex,
+        page: renderedPage,
+        item: renderedItem,
+        itemIndex: renderedItemIndex,
       } = latestArgsRef.current;
+      const freshPage = client
+        .getState()
+        .pages.find((page) => page.id === renderedPage.id);
+      const currentPage = freshPage ?? renderedPage;
+      const freshItemIndex = currentPage.items.findIndex(
+        (pageItem) => pageItem.id === renderedItem.id,
+      );
+      const currentItemIndex =
+        freshItemIndex === -1 ? renderedItemIndex : freshItemIndex;
+      const currentItem = currentPage.items[currentItemIndex] ?? renderedItem;
       const boundary = classifySelection(view.state);
 
       if (

@@ -1,6 +1,6 @@
 import React from "react";
 import type { NotebookPage } from "../../../contexts/notebook-editor-context";
-import { useNotebookEditor } from "../../../contexts/notebook-editor-context";
+import { useNotebookEditorActions } from "../../../contexts/notebook-editor-context";
 import { useToast } from "../../../contexts/toast-context";
 import { copyTextToClipboard } from "../../../utils/clipboard";
 import { notebookPageToMarkdownList } from "../../../utils/notebook-page-markdown";
@@ -16,7 +16,7 @@ export function PageActionsMenu({
   canMoveUp,
   canMoveDown,
 }: PageActionsMenuProps) {
-  const { client } = useNotebookEditor();
+  const client = useNotebookEditorActions();
   const { pushToast } = useToast();
 
   const handleCopyPageAsMarkdown = async () => {

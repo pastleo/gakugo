@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
 
 import {
-  useNotebookEditor,
+  useNotebookEditorActions,
   type NotebookItemId,
   type NotebookPage,
 } from "./notebook-editor-context";
@@ -150,7 +150,7 @@ export function NotebookEditorDragProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { client, pages } = useNotebookEditor();
+  const client = useNotebookEditorActions();
   const [dragState, setDragState] = useState<NotebookDragState | null>(null);
 
   const value = useMemo<NotebookEditorDragContextValue>(
@@ -192,6 +192,7 @@ export function NotebookEditorDragProvider({
           );
           if (!Number.isFinite(pageId)) return;
 
+          const { pages } = client.getState();
           const sourcePage = pages.find((page) => page.id === source.pageId);
           const targetPage = pages.find((page) => page.id === pageId);
           if (!sourcePage || !targetPage) return;
@@ -231,7 +232,7 @@ export function NotebookEditorDragProvider({
         });
       },
     }),
-    [client, dragState, pages],
+    [client, dragState],
   );
 
   return (

@@ -87,6 +87,7 @@ Durable truths to keep in mind:
 - sender replies and peer updates converge on shared canonical update handling through `react:update` / shared `applyUpdate(update)` logic
 - runtime state is read from `UnitSession.snapshot/1`, then persisted downstream rather than treating DB state as the live editing owner
 - structural editing keybindings/spec for the notebook editor live in `docs/notebook-structural-editing-keybindings.md`; keep focus choreography on the React side rather than the server
+- notebook typing performance has dedicated constraints in `docs/notebook-typing-performance.md`; preserve the throttled text update flow, `editedAt`-based render invalidation, narrow React selectors, and the separate LiveView hook bridge / React mount root
 
 ### Collaboration layers and protocol
 
@@ -117,6 +118,7 @@ Durable truths to keep in mind:
 - `lib/gakugo_web/live/unit_live/show_edit.ex`
 - `assets/js/notebook-editor.tsx`
 - `assets/js/feat-components/notebook-editor.tsx`
+- `docs/notebook-typing-performance.md`
 
 ### Flashcard/Answer rules
 

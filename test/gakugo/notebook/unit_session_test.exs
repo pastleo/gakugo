@@ -630,6 +630,91 @@ defmodule Gakugo.Notebook.UnitSessionTest do
     assert rendered =~ ~s(isInline="false")
   end
 
+  test "snapshot initializes server-owned editedAt for pages and items" do
+    unit = unit_fixture()
+    {page, _runtime_item} = create_single_item_page(unit, "Original")
+
+    snapshot = UnitSession.snapshot(unit.id)
+    snapshot_page = Enum.find(snapshot.unit.pages, &(&1.id == page.id))
+    snapshot_item = hd(snapshot_page.items)
+
+    assert is_integer(snapshot_page.editedAt)
+    assert snapshot_page.editedAt > 0
+    assert is_integer(snapshot_item["editedAt"])
+    assert snapshot_item["editedAt"] > 0
+  end
+
+  test "text_collab_update advances server-owned editedAt only for the touched item" do
+    unit = unit_fixture()
+    page = hd(Db.get_unit!(unit.id).pages)
+
+    {:ok, page} =
+      Db.update_page(page, %{
+        "title" => page.title,
+        "items" => [
+          %{
+            "id" => "id-a",
+            "text" => "A",
+            "depth" => 0,
+            "flashcard" => false,
+            "answer" => false,
+            "editedAt" => 111
+          },
+          %{
+            "id" => "id-b",
+            "text" => "B",
+            "depth" => 0,
+            "flashcard" => false,
+            "answer" => false,
+            "editedAt" => 222
+          }
+        ]
+      })
+
+    before_page =
+      unit.id
+      |> UnitSession.snapshot()
+      |> then(fn snapshot -> Enum.find(snapshot.unit.pages, &(&1.id == page.id)) end)
+
+    [before_item_a, before_item_b] = before_page.items
+
+    {:ok, %{kind: "page_updated", page: reply_page}} =
+      UnitSession.apply_intent(unit.id, "actor-edited-at", %{
+        "scope" => "page_content",
+        "action" => "text_collab_update",
+        "target" => %{"page_id" => page.id, "item_id" => "id-a"},
+        "version" => %{"local" => 0},
+        "nodes" => [
+          before_item_a |> Map.put("editedAt", 333),
+          before_item_b |> Map.put("editedAt", 444)
+        ],
+        "payload" => %{
+          "y_state_as_update" => "opaque-state",
+          "text" => "A updated",
+          "editedAt" => 555
+        }
+      })
+
+    [reply_item_a, reply_item_b] = reply_page.items
+
+    assert reply_page.editedAt > before_page.editedAt
+    assert reply_item_a["editedAt"] > before_item_a["editedAt"]
+    assert reply_item_b["editedAt"] == before_item_b["editedAt"]
+
+    refute reply_page.editedAt in [333, 444, 555]
+    refute reply_item_a["editedAt"] in [333, 444, 555]
+
+    snapshot_page =
+      unit.id
+      |> UnitSession.snapshot()
+      |> then(fn snapshot -> Enum.find(snapshot.unit.pages, &(&1.id == page.id)) end)
+
+    assert snapshot_page.editedAt == reply_page.editedAt
+
+    assert Enum.map(snapshot_page.items, & &1["editedAt"]) ==
+             Enum.map(reply_page.items, & &1["editedAt"])
+  end
+
   test "text_collab_update requires text and y_state_as_update, and updates canonical state" do
     unit = unit_fixture()
     {page, _runtime_item} = create_single_item_page(unit, "Original")

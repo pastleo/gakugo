@@ -29,6 +29,7 @@ function parseInitialPagesJson(
 interface LiveViewHookContext {
   el: HTMLElement;
   root?: { render(node: unknown): void; unmount(): void };
+  reactRootEl?: HTMLElement;
   addReactUpdateListener: (
     callback: (payload: unknown) => void,
   ) => void | (() => void);
@@ -44,8 +45,15 @@ interface LiveViewHookContext {
 export const NotebookEditorPhxHook = {
   mounted() {
     const hook = this as unknown as LiveViewHookContext;
+    const rootId = hook.el.dataset.rootId;
+    const reactRootEl = rootId ? document.getElementById(rootId) : hook.el;
 
-    hook.root = createRoot(hook.el);
+    if (!reactRootEl) {
+      throw new Error("NotebookEditorPhxHook missing React root element");
+    }
+
+    hook.reactRootEl = reactRootEl;
+    hook.root = createRoot(reactRootEl);
 
     const initialPages = parseInitialPagesJson(
       hook.el.dataset.initialPagesJson,
