@@ -90,6 +90,56 @@ defmodule Gakugo.DbTest do
       unit = unit_fixture()
       assert %Ecto.Changeset{} = Db.change_unit(unit)
     end
+
+    test "search_notebook_items/1 scans active page items" do
+      unit = unit_fixture(%{title: "Searchable Unit"})
+      unit = Db.get_unit!(unit.id)
+      page = hd(unit.pages)
+
+      {:ok, _page} =
+        Db.update_page(page, %{
+          title: "Search Page",
+          items: [
+            %{"id" => "item-1", "text" => "alpha keyword match", "depth" => 0},
+            %{"id" => "item-2", "text" => "other text", "depth" => 0},
+            %{"text" => "keyword without id", "depth" => 0}
+          ]
+        })
+
+      deleted_unit = unit_fixture(%{title: "Deleted Unit"})
+      deleted_unit = Db.get_unit!(deleted_unit.id)
+      deleted_page = hd(deleted_unit.pages)
+
+      {:ok, _page} =
+        Db.update_page(deleted_page, %{
+          items: [%{"id" => "deleted-item", "text" => "keyword hidden", "depth" => 0}]
+        })
+
+      assert {:ok, _unit} = Db.delete_unit(deleted_unit)
+
+      assert [result] = Db.search_notebook_items("keyword")
+      assert result.unit_id == unit.id
+      assert result.unit_title == "Searchable Unit"
+      assert result.page_id == page.id
+      assert result.page_title == "Search Page"
+      assert result.item_id == "item-1"
+      assert result.item_text == "alpha keyword match"
+    end
+
+    test "search_notebook_items/1 escapes LIKE wildcards" do
+      unit = unit_fixture()
+      page = unit.id |> Db.get_unit!() |> Map.get(:pages) |> hd()
+
+      {:ok, _page} =
+        Db.update_page(page, %{
+          items: [
+            %{"id" => "literal", "text" => "100% literal", "depth" => 0},
+            %{"id" => "wildcard", "text" => "100x wildcard", "depth" => 0}
+          ]
+        })
+
+      assert [%{item_id: "literal"}] = Db.search_notebook_items("100%")
+    end
   end
 
   describe "pages" do

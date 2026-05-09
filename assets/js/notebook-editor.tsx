@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import {
   NotebookEditor,
   type ApplyIntentReply,
+  type NotebookEditorProps,
   type NotebookInitialPages,
 } from "./feat-components/notebook-editor";
 
@@ -24,6 +25,19 @@ function parseInitialPagesJson(
   } catch {
     return { unitId: null, pages: [] };
   }
+}
+
+function parseInitialFocusTarget(
+  pageIdValue: string | undefined,
+  itemId: string | undefined,
+): NotebookEditorProps["initialFocusTarget"] {
+  const pageId = Number(pageIdValue);
+
+  if (!Number.isInteger(pageId) || !itemId) {
+    return null;
+  }
+
+  return { pageId, itemId };
 }
 
 interface LiveViewHookContext {
@@ -58,6 +72,10 @@ export const NotebookEditorPhxHook = {
     const initialPages = parseInitialPagesJson(
       hook.el.dataset.initialPagesJson,
     );
+    const initialFocusTarget = parseInitialFocusTarget(
+      hook.el.dataset.focusPageId,
+      hook.el.dataset.focusItemId,
+    );
 
     hook.addReactUpdateListener = (callback: (payload: unknown) => void) =>
       void hook.handleEvent("react:update", (payload: unknown) => {
@@ -80,6 +98,7 @@ export const NotebookEditorPhxHook = {
       <StrictMode>
         <NotebookEditor
           initialPages={initialPages}
+          initialFocusTarget={initialFocusTarget}
           addReactUpdateListener={hook.addReactUpdateListener}
           applyIntent={hook.applyIntent}
         />

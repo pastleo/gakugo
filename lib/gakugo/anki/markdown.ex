@@ -7,7 +7,7 @@ defmodule Gakugo.Anki.Markdown do
 
   def render_html(_), do: ""
 
-  def preview_summary(markdown), do: Gakugo.Anki.Preview.summary(markdown)
+  def preview_summary(markdown), do: Gakugo.Notebook.Markdown.Preview.summary(markdown)
 
   def wrap_occlusion(answer_html, current_answer?) when is_binary(answer_html) do
     occlusion_class =

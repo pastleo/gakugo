@@ -31,76 +31,117 @@ defmodule GakugoWeb.UnitLive.Index do
               @deleted_units
             )})
           </.button>
+          <.button phx-click="toggle_search_panel" class="btn btn-ghost">
+            <.icon name="hero-magnifying-glass" /> Search
+          </.button>
           <.button variant="primary" navigate={~p"/units/new"}>
             <.icon name="hero-plus" /> New Unit
           </.button>
         </:actions>
       </.header>
 
-      <.table
-        id="units"
-        rows={@streams.units}
-        row_click={fn {_id, unit} -> JS.navigate(~p"/units/#{unit}") end}
-      >
-        <:col :let={{_id, unit}} label="Title">{unit.title}</:col>
-        <:col :let={{_id, unit}} label="Language Pair">
-          {FromTargetLang.label(unit.from_target_lang)}
-        </:col>
-        <:action :let={{id, unit}}>
-          <.link
-            phx-click={JS.push("delete", value: %{id: unit.id}) |> hide("##{id}")}
-            data-confirm="Are you sure?"
-          >
-            Delete
-          </.link>
-        </:action>
-      </.table>
+      <div class="drawer drawer-end">
+        <input
+          id="unit-index-search-drawer-toggle"
+          type="checkbox"
+          class="drawer-toggle"
+          checked={@show_search_panel}
+        />
 
-      <%= if @show_recycle_bin do %>
-        <div class="mt-8 rounded-2xl border border-base-300 bg-base-100 p-5 shadow-sm">
-          <div class="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h3 class="text-base font-semibold text-base-content">Recycle Bin</h3>
-              <p class="text-sm text-base-content/70">
-                Restore units that were deleted.
-              </p>
+        <div class="drawer-content">
+          <.table
+            id="units"
+            rows={@streams.units}
+            row_click={fn {_id, unit} -> JS.navigate(~p"/units/#{unit}") end}
+          >
+            <:col :let={{_id, unit}} label="Title">{unit.title}</:col>
+            <:col :let={{_id, unit}} label="Language Pair">
+              {FromTargetLang.label(unit.from_target_lang)}
+            </:col>
+            <:action :let={{id, unit}}>
+              <.link
+                phx-click={JS.push("delete", value: %{id: unit.id}) |> hide("##{id}")}
+                data-confirm="Are you sure?"
+              >
+                Delete
+              </.link>
+            </:action>
+          </.table>
+
+          <%= if @show_recycle_bin do %>
+            <div class="mt-8 rounded-2xl border border-base-300 bg-base-100 p-5 shadow-sm">
+              <div class="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h3 class="text-base font-semibold text-base-content">Recycle Bin</h3>
+                  <p class="text-sm text-base-content/70">
+                    Restore units that were deleted.
+                  </p>
+                </div>
+                <span class="badge badge-ghost">{length(@deleted_units)} item(s)</span>
+              </div>
+
+              <div
+                :if={@deleted_units == []}
+                class="rounded-xl border border-dashed border-base-300 p-6 text-center"
+              >
+                <p class="text-sm text-base-content/70">No deleted units.</p>
+              </div>
+
+              <div :if={@deleted_units != []} class="overflow-x-auto">
+                <table id="deleted-units" class="table table-zebra">
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Language Pair</th>
+                      <th>Deleted At</th>
+                      <th><span class="sr-only">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr :for={unit <- @deleted_units} id={"deleted-unit-#{unit.id}"}>
+                      <td>{unit.title}</td>
+                      <td>{FromTargetLang.label(unit.from_target_lang)}</td>
+                      <td>{unit.deleted_at}</td>
+                      <td>
+                        <div class="flex gap-4">
+                          <.link phx-click="restore" phx-value-id={unit.id}>Restore</.link>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <span class="badge badge-ghost">{length(@deleted_units)} item(s)</span>
-          </div>
-
-          <div
-            :if={@deleted_units == []}
-            class="rounded-xl border border-dashed border-base-300 p-6 text-center"
-          >
-            <p class="text-sm text-base-content/70">No deleted units.</p>
-          </div>
-
-          <div :if={@deleted_units != []} class="overflow-x-auto">
-            <table id="deleted-units" class="table table-zebra">
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Language Pair</th>
-                  <th>Deleted At</th>
-                  <th><span class="sr-only">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr :for={unit <- @deleted_units} id={"deleted-unit-#{unit.id}"}>
-                  <td>{unit.title}</td>
-                  <td>{FromTargetLang.label(unit.from_target_lang)}</td>
-                  <td>{unit.deleted_at}</td>
-                  <td>
-                    <div class="flex gap-4">
-                      <.link phx-click="restore" phx-value-id={unit.id}>Restore</.link>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <% end %>
         </div>
-      <% end %>
+
+        <div class="drawer-side z-50">
+          <label
+            for="unit-index-search-drawer-toggle"
+            class="drawer-overlay"
+            aria-label="close search panel"
+            phx-click="close_search_panel"
+          >
+          </label>
+
+          <section class="h-full w-[22rem] overflow-y-auto border-l border-base-300 bg-base-100 p-5 shadow-2xl">
+            <div class="mb-4 flex items-center justify-between">
+              <h2 class="text-sm font-semibold text-base-content">Search notebooks</h2>
+
+              <button
+                id="close-search-panel-btn"
+                type="button"
+                phx-click="close_search_panel"
+                class="rounded-md p-1 text-base-content/70 transition hover:bg-base-200"
+              >
+                <.icon name="hero-x-mark" class="size-5" />
+              </button>
+            </div>
+
+            <.live_component module={GakugoWeb.UnitLive.SearchPanel} id="unit-search-panel" />
+          </section>
+        </div>
+      </div>
     </Layouts.app>
     """
   end
@@ -117,6 +158,7 @@ defmodule GakugoWeb.UnitLive.Index do
      socket
      |> assign(:page_title, "Listing Units")
      |> assign(:show_recycle_bin, false)
+     |> assign(:show_search_panel, false)
      |> assign(:refreshing_ai_models, ai_loading?(ai_runtime))
      |> assign(:ai_runtime, ai_runtime)
      |> assign(:deleted_units, Db.list_deleted_units())
@@ -126,6 +168,16 @@ defmodule GakugoWeb.UnitLive.Index do
   @impl true
   def handle_event("toggle_recycle_bin", _params, socket) do
     {:noreply, assign(socket, :show_recycle_bin, !socket.assigns.show_recycle_bin)}
+  end
+
+  @impl true
+  def handle_event("toggle_search_panel", _params, socket) do
+    {:noreply, assign(socket, :show_search_panel, !socket.assigns.show_search_panel)}
+  end
+
+  @impl true
+  def handle_event("close_search_panel", _params, socket) do
+    {:noreply, assign(socket, :show_search_panel, false)}
   end
 
   @impl true

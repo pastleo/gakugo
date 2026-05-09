@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   NotebookEditorProvider,
   useNotebookEditorActions,
@@ -12,9 +12,40 @@ import {
   type ReactUpdateListener,
 } from "../contexts/notebook-editor-context";
 import { NotebookEditorDragProvider } from "../contexts/notebook-editor-drag-context";
-import { NotebookEditorFocusProvider } from "../contexts/notebook-editor-focus-context";
+import {
+  NotebookEditorFocusProvider,
+  useNotebookEditorFocus,
+} from "../contexts/notebook-editor-focus-context";
 import { ToastProvider } from "../contexts/toast-context";
 import { PageCard } from "./notebook-editor/page-card";
+
+function InitialFocusTarget({
+  target,
+}: {
+  target: NotebookEditorProps["initialFocusTarget"];
+}) {
+  const { requestItemFocus } = useNotebookEditorFocus();
+
+  useEffect(() => {
+    if (!target) {
+      return;
+    }
+
+    requestItemFocus({
+      pageId: target.pageId,
+      itemId: target.itemId,
+      selection: "start",
+    });
+
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById(`react-notebook-item-${target.pageId}-${target.itemId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [requestItemFocus, target]);
+
+  return null;
+}
 
 function NotebookEditorSurface() {
   const client = useNotebookEditorActions();
@@ -57,6 +88,7 @@ function NotebookEditorSurface() {
 
 export function NotebookEditor({
   initialPages,
+  initialFocusTarget,
   addReactUpdateListener,
   applyIntent,
 }: NotebookEditorProps) {
@@ -68,6 +100,7 @@ export function NotebookEditor({
         applyIntent={applyIntent}
       >
         <NotebookEditorFocusProvider>
+          <InitialFocusTarget target={initialFocusTarget} />
           <NotebookEditorDragProvider>
             <NotebookEditorSurface />
           </NotebookEditorDragProvider>

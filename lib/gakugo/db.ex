@@ -25,6 +25,46 @@ defmodule Gakugo.Db do
   end
 
   @doc """
+  Searches active notebook page items by scanning the pages.items JSON payload.
+  """
+  def search_notebook_items(keyword) when is_binary(keyword) do
+    keyword = String.trim(keyword)
+
+    if keyword == "" do
+      []
+    else
+      pattern = "%#{escape_like(keyword)}%"
+
+      from(p in Page,
+        join: u in assoc(p, :unit),
+        join: item in fragment("json_each(?)", p.items),
+        on: true,
+        where: is_nil(u.deleted_at),
+        where: not is_nil(fragment("json_extract(?, '$.id')", field(item, :value))),
+        where:
+          fragment(
+            "COALESCE(json_extract(?, '$.text'), '') LIKE ? ESCAPE '\\'",
+            field(item, :value),
+            ^pattern
+          ),
+        order_by: [asc: u.title, asc: p.position, asc: p.id],
+        limit: 50,
+        select: %{
+          page_id: p.id,
+          unit_id: p.unit_id,
+          unit_title: u.title,
+          page_title: p.title,
+          item_id: fragment("json_extract(?, '$.id')", field(item, :value)),
+          item_text: fragment("COALESCE(json_extract(?, '$.text'), '')", field(item, :value))
+        }
+      )
+      |> Repo.all()
+    end
+  end
+
+  def search_notebook_items(_keyword), do: []
+
+  @doc """
   Returns the list of soft-deleted units.
   """
   def list_deleted_units do
@@ -278,6 +318,13 @@ defmodule Gakugo.Db do
   end
 
   defp next_page_position(_), do: 1
+
+  defp escape_like(value) do
+    value
+    |> String.replace("\\", "\\\\")
+    |> String.replace("%", "\\%")
+    |> String.replace("_", "\\_")
+  end
 
   defp create_default_page(unit) do
     create_page(%{

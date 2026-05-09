@@ -9,7 +9,7 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
   @unit_session_heartbeat_ms 10_000
 
   @impl true
-  def mount(%{"id" => id}, _session, socket) do
+  def mount(%{"id" => id} = params, _session, socket) do
     unit = ensure_unit_has_page(Db.get_unit!(id))
     snapshot = UnitSession.snapshot(unit.id)
 
@@ -20,6 +20,7 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
       |> assign(:from_target_lang_options, FromTargetLang.options())
       |> assign(:meta_form, to_form(UnitSession.change_unit_session(snapshot.unit)))
       |> assign(:initial_pages_json, build_initial_pages_json(snapshot.unit))
+      |> assign(:initial_focus_target, initial_focus_target(params))
       |> assign(:active_drawer, nil)
       |> assign(:actor_id, Ecto.UUID.generate())
 
@@ -125,6 +126,8 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
                 phx-hook="NotebookEditorPhxHook"
                 data-root-id="notebook-editor-root"
                 data-initial-pages-json={@initial_pages_json}
+                data-focus-page-id={@initial_focus_target && @initial_focus_target.page_id}
+                data-focus-item-id={@initial_focus_target && @initial_focus_target.item_id}
               >
               </div>
 
@@ -341,6 +344,16 @@ defmodule GakugoWeb.UnitLive.ShowEdit do
   defp build_initial_pages_json(unit) do
     %{unit_id: unit.id, pages: unit.pages} |> Jason.encode!()
   end
+
+  defp initial_focus_target(%{"page_id" => page_id, "item_id" => item_id})
+       when is_binary(page_id) and is_binary(item_id) and item_id != "" do
+    case Integer.parse(page_id) do
+      {page_id, ""} -> %{page_id: page_id, item_id: item_id}
+      _other -> nil
+    end
+  end
+
+  defp initial_focus_target(_params), do: nil
 
   defp drawer_title("flashcards"), do: "Flashcards"
   defp drawer_title(_), do: "Unit options"

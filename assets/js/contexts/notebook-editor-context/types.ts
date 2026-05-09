@@ -116,6 +116,10 @@ export type CanonicalUpdate =
 
 export interface NotebookEditorProps {
   initialPages: NotebookInitialPages;
+  initialFocusTarget?: {
+    pageId: NotebookPageId;
+    itemId: NotebookItemId;
+  } | null;
   addReactUpdateListener: ReactUpdateListener;
   applyIntent: ApplyIntent;
 }
