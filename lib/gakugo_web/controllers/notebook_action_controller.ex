@@ -64,8 +64,12 @@ defmodule GakugoWeb.NotebookActionController do
 
   defp required_answer_mode(params) do
     case Map.get(params, "answer_mode") do
-      mode when mode in ["first_depth", "non_first_depth", "no_answer"] -> {:ok, mode}
-      _ -> {:error, "invalid parameters"}
+      mode
+      when mode in ["first_depth", "first_second_depth_front", "non_first_depth", "no_answer"] ->
+        {:ok, mode}
+
+      _ ->
+        {:error, "invalid parameters"}
     end
   end
 

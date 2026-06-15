@@ -38,6 +38,10 @@ const ANSWER_MODE_OPTIONS: Array<{
   label: string;
 }> = [
   { value: "first_depth", label: "First depth also as answer" },
+  {
+    value: "first_second_depth_front",
+    label: "First item of 2nd depth as front",
+  },
   { value: "non_first_depth", label: "Non-first depth as answer" },
   { value: "no_answer", label: "No answer" },
 ];

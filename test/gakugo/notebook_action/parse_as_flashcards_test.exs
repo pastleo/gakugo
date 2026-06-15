@@ -51,6 +51,68 @@ defmodule Gakugo.NotebookAction.ParseAsFlashcardsTest do
     assert Enum.all?(reply_items, &is_binary(&1["yStateAsUpdate"]))
   end
 
+  test "perform excludes first second-depth items from answers" do
+    unit = unit_fixture()
+    page = hd(Db.get_unit!(unit.id).pages)
+
+    {:ok, page} =
+      Db.update_page(page, %{
+        "title" => page.title,
+        "items" => [
+          %{
+            "id" => "id-source",
+            "text" =>
+              "* card 1\n  * front 1\n  * answer 1\n* card 2\n  * front 2\n    * nested answer\n  * answer 2",
+            "depth" => 0,
+            "flashcard" => false,
+            "answer" => false
+          }
+        ]
+      })
+
+    assert {:ok, %{kind: "page_updated", page: %{items: reply_items}}} =
+             ParseAsFlashcards.perform(
+               unit.id,
+               page.id,
+               "id-source",
+               "next_siblings",
+               "first_second_depth_front"
+             )
+
+    assert Enum.map(reply_items, & &1["text"]) == [
+             "* card 1\n  * front 1\n  * answer 1\n* card 2\n  * front 2\n    * nested answer\n  * answer 2",
+             "card 1",
+             "front 1",
+             "answer 1",
+             "card 2",
+             "front 2",
+             "nested answer",
+             "answer 2"
+           ]
+
+    assert Enum.map(reply_items, & &1["flashcard"]) == [
+             false,
+             true,
+             false,
+             false,
+             true,
+             false,
+             false,
+             false
+           ]
+
+    assert Enum.map(reply_items, & &1["answer"]) == [
+             false,
+             false,
+             false,
+             true,
+             false,
+             false,
+             true,
+             true
+           ]
+  end
+
   defp stop_all_unit_sessions do
     for {_, pid, _, _} <-
           DynamicSupervisor.which_children(Gakugo.Notebook.UnitSession.Supervisor) do

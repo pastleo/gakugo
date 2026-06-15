@@ -85,23 +85,59 @@ defmodule Gakugo.NotebookAction.ParseAsFlashcards do
   defp mark_flashcard_items(items, answer_mode) when is_list(items) do
     root_depth = items |> Enum.map(&Outline.item_depth/1) |> Enum.min(fn -> 0 end)
 
+    first_second_depth_ids = first_second_depth_ids(items, root_depth)
+
     Enum.map(items, fn item ->
       depth = Outline.item_depth(item)
       is_root = depth == root_depth
+      is_first_second_depth = Map.get(item, "id") in first_second_depth_ids
 
-      answer =
+      {flashcard, answer} =
         case answer_mode do
-          "first_depth" -> is_root
-          "non_first_depth" -> not is_root
-          "no_answer" -> false
-          _ -> false
+          "first_depth" -> {is_root, is_root}
+          "first_second_depth_front" -> {is_root, not is_root and not is_first_second_depth}
+          "non_first_depth" -> {is_root, not is_root}
+          "no_answer" -> {is_root, false}
+          _ -> {is_root, false}
         end
 
       item
-      |> Map.put("flashcard", is_root)
+      |> Map.put("flashcard", flashcard)
       |> Map.put("answer", answer)
     end)
   end
 
   defp mark_flashcard_items(_items, _answer_mode), do: []
+
+  defp first_second_depth_ids(items, root_depth) do
+    second_depth = root_depth + 1
+
+    items
+    |> Enum.reduce({nil, MapSet.new(), MapSet.new()}, fn item,
+                                                         {current_root_id, roots_with_child,
+                                                          first_child_ids} ->
+      depth = Outline.item_depth(item)
+
+      cond do
+        depth == root_depth ->
+          {Map.get(item, "id"), roots_with_child, first_child_ids}
+
+        depth == second_depth and not is_nil(current_root_id) ->
+          if MapSet.member?(roots_with_child, current_root_id) do
+            {current_root_id, roots_with_child, first_child_ids}
+          else
+            {current_root_id, MapSet.put(roots_with_child, current_root_id),
+             MapSet.put(first_child_ids, Map.get(item, "id"))}
+          end
+
+        depth <= root_depth ->
+          {nil, roots_with_child, first_child_ids}
+
+        true ->
+          {current_root_id, roots_with_child, first_child_ids}
+      end
+    end)
+    |> elem(2)
+    |> MapSet.to_list()
+  end
 end

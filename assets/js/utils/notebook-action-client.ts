@@ -17,7 +17,11 @@ export type ParseAsItemsRequest = {
 };
 
 export type ParseAsFlashcardsRequest = ParseAsItemsRequest & {
-  answer_mode: "first_depth" | "non_first_depth" | "no_answer";
+  answer_mode:
+    | "first_depth"
+    | "first_second_depth_front"
+    | "non_first_depth"
+    | "no_answer";
 };
 
 export class NotebookActionClientError extends Error {

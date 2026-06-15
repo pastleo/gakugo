@@ -11,6 +11,7 @@ export type PromptingMode = "parse_as_items" | "parse_as_flashcards";
 export type PromptingInsertionMode = "next_siblings" | "children";
 export type PromptingAnswerMode =
   | "first_depth"
+  | "first_second_depth_front"
   | "non_first_depth"
   | "no_answer";
 

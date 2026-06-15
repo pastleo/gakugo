@@ -347,6 +347,7 @@ defmodule Gakugo.Notebook.Outline do
 
   defp normalize_prompting_answer_mode(prompting) do
     case Map.get(prompting, "answerMode", Map.get(prompting, "answer_mode")) do
+      "first_second_depth_front" -> "first_second_depth_front"
       "non_first_depth" -> "non_first_depth"
       "no_answer" -> "no_answer"
       _ -> "first_depth"
